@@ -359,6 +359,40 @@ function presetFor(age = 5) {
   return presets.find((p) => age >= p.min && age <= p.max) || presets[presets.length - 1];
 }
 
+function csvRowsForAge(age) {
+  return (window.AGE_SCHEDULE_ROWS || [])
+    .filter((row) => Number(row.month) === Math.max(0, Math.min(24, Number(age) || 0)))
+    .sort((a, b) => Number(a.event_order) - Number(b.event_order));
+}
+
+function csvTypeToBlockType(row) {
+  const text = `${row.event_type || ''} ${row.event_name || ''}`.toLowerCase();
+  if (text.includes('сон') || text.includes('ночь')) return 'sleep';
+  if (text.includes('корм') || text.includes('молоко') || text.includes('еда') || text.includes('перекус') || text.includes('завтрак') || text.includes('обед') || text.includes('ужин')) return 'feed';
+  if (text.includes('ритуал') || text.includes('вечер') || text.includes('тихий')) return 'calm';
+  return 'active';
+}
+
+function generateCsvSchedule() {
+  const rows = csvRowsForAge(state.settings.ageMonths);
+  if (!rows.length) return null;
+  const shift = state.settings.wakeHour * 60 - 7 * 60;
+  return rows.map((row, index) => {
+    const start = toMinute(row.start_time) + shift;
+    const end = normalizeEnd(toMinute(row.end_time), toMinute(row.start_time)) + shift;
+    return {
+      id: `csv-${row.month}-${row.event_order}-${index}`,
+      start,
+      end,
+      title: row.event_name,
+      labelKey: null,
+      type: csvTypeToBlockType(row),
+      rawEventType: row.event_type,
+      source: 'csv',
+    };
+  }).sort((a, b) => a.start - b.start);
+}
+
 function feedingPreset(age = 5) {
   if (age < 1) return { interval: 120, duration: 30, nightFeeds: 3 };
   if (age < 2) return { interval: 150, duration: 30, nightFeeds: 3 };
@@ -442,6 +476,8 @@ const fixedSchedule = [
 function generateSchedule() {
   if (state.settings.scheduleMode === 'custom' && Array.isArray(state.customSchedule) && state.customSchedule.length) return state.customSchedule;
   if (state.settings.scheduleMode === 'fixed') return fixedSchedule;
+  const csvSchedule = generateCsvSchedule();
+  if (csvSchedule) return csvSchedule;
   const p = presetFor(state.settings.ageMonths);
   const feeding = feedingPreset(state.settings.ageMonths);
   const wake = state.settings.wakeHour * 60;
@@ -583,7 +619,8 @@ function icon(type) {
 }
 
 function blockIcon(block) {
-  if (block.labelKey === 'walk') return fileIcon('stroller');
+  const text = `${block.rawEventType || ''} ${block.title || ''} ${block.labelKey || ''}`.toLowerCase();
+  if (block.type === 'active' && (text.includes('прогул') || text.includes('улиц'))) return fileIcon('stroller');
   return icon(block.type);
 }
 
