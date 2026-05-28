@@ -19,6 +19,7 @@ const labels = {
     stats: 'Стат.',
     statsTitle: 'Статистика',
     settings: 'Настр.',
+    settingsTitle: 'Настройки',
     currentSleep: 'Текущий сон',
     awake: 'Не спит',
     startNap: 'Начать сон',
@@ -55,7 +56,7 @@ const labels = {
     load: 'Загр.',
     empty: 'Пусто',
     saved: 'Сохранён',
-    restartSetup: 'Пройти настройку заново',
+    restartSetup: 'Пересобрать план',
     welcomeTitle: 'Спокойный режим сна для малыша',
     welcomeBody: 'Соберите гибкий план дня по возрасту и меняйте его под реальную жизнь.',
     pointNow: 'Показывает, что сейчас по плану и что дальше.',
@@ -90,6 +91,7 @@ const labels = {
     stats: 'Stats',
     statsTitle: 'Stats',
     settings: 'Settings',
+    settingsTitle: 'Settings',
     currentSleep: 'Current sleep',
     awake: 'Awake',
     startNap: 'Start nap',
@@ -126,7 +128,7 @@ const labels = {
     load: 'Load',
     empty: 'Empty',
     saved: 'Saved',
-    restartSetup: 'Restart setup',
+    restartSetup: 'Rebuild plan',
     welcomeTitle: 'A calm sleep routine for your baby',
     welcomeBody: 'Build a flexible day plan based on age, then adjust it as real life happens.',
     pointNow: 'Shows what is happening now and what comes next.',
@@ -161,6 +163,7 @@ const labels = {
     stats: 'Stats',
     statsTitle: 'Statistik',
     settings: 'Einst.',
+    settingsTitle: 'Einstellungen',
     currentSleep: 'Aktueller Schlaf',
     awake: 'Wach',
     startNap: 'Schlaf starten',
@@ -197,7 +200,7 @@ const labels = {
     load: 'Laden',
     empty: 'Leer',
     saved: 'Gesichert',
-    restartSetup: 'Setup neu starten',
+    restartSetup: 'Plan neu erstellen',
     welcomeTitle: 'Eine ruhige Schlafroutine fürs Baby',
     welcomeBody: 'Erstelle einen flexiblen Tagesplan nach Alter und passe ihn an den Alltag an.',
     pointNow: 'Zeigt, was jetzt dran ist und was als Nächstes kommt.',
@@ -394,32 +397,33 @@ function generateSchedule() {
   let cursor = wake;
   let id = 0;
   const push = (start, end, labelKey, type) => {
-    if (end > start) blocks.push({ id: `age-${id++}`, start, end, labelKey, type });
+    const safeStart = Math.max(start, blocks.at(-1)?.end ?? start);
+    const safeEnd = Math.max(end, safeStart);
+    if (safeEnd - safeStart >= 10) blocks.push({ id: `age-${id++}`, start: safeStart, end: safeEnd, labelKey, type });
+    return safeEnd;
   };
-  push(cursor, cursor + 35, 'wake_feeding', 'feed');
-  cursor += 35;
+  cursor = push(cursor, cursor + 35, 'wake_feeding', 'feed');
   for (let nap = 1; nap <= p.naps; nap++) {
-    const playEnd = Math.min(cursor + Math.max(45, p.wake - (nap === 1 ? 15 : 0)), bedtime - 90);
-    push(cursor, playEnd, nap === 1 ? 'play_tummy' : 'play', 'active');
-    cursor = playEnd;
-    push(cursor, cursor + 15, 'wind_down', 'calm');
-    cursor += 15;
-    const napEnd = Math.min(cursor + (nap === Math.ceil(p.naps / 2) ? p.napMinutes + 20 : p.napMinutes), bedtime - 70);
-    push(cursor, napEnd, nap === 1 ? 'nap_1' : nap === 2 ? 'nap_2' : nap === 3 ? 'main_nap' : 'nap_4', 'sleep');
-    cursor = napEnd;
-    if (nap < p.naps) {
-      push(cursor, cursor + 30, 'feeding_diaper', 'feed');
-      cursor += 30;
+    if (cursor >= bedtime - 105) break;
+    const activeEnd = Math.min(cursor + Math.max(45, p.wake - (nap === 1 ? 15 : 0)), bedtime - 100);
+    cursor = push(cursor, activeEnd, nap === 1 ? 'play_tummy' : 'play', 'active');
+    if (cursor >= bedtime - 90) break;
+    cursor = push(cursor, Math.min(cursor + 15, bedtime - 80), 'wind_down', 'calm');
+    if (cursor >= bedtime - 75) break;
+    const napLength = nap === Math.ceil(p.naps / 2) ? p.napMinutes + 20 : p.napMinutes;
+    const napEnd = Math.min(cursor + napLength, bedtime - 65);
+    cursor = push(cursor, napEnd, nap === 1 ? 'nap_1' : nap === 2 ? 'nap_2' : nap === 3 ? 'main_nap' : 'nap_4', 'sleep');
+    if (nap < p.naps && cursor < bedtime - 105) {
+      cursor = push(cursor, Math.min(cursor + 30, bedtime - 105), 'feeding_diaper', 'feed');
     }
   }
   if (cursor < bedtime - 95) {
-    push(cursor, Math.min(cursor + 70, bedtime - 95), 'walk', 'active');
-    cursor = Math.min(cursor + 70, bedtime - 95);
+    cursor = push(cursor, Math.min(cursor + 70, bedtime - 95), 'walk', 'active');
   }
-  push(cursor, bedtime - 75, 'quiet_play', 'calm');
-  push(bedtime - 75, bedtime - 55, 'top_up', 'feed');
-  push(bedtime - 55, bedtime, 'settling', 'calm');
-  push(bedtime, wake + DAY, 'night_sleep', 'sleep');
+  cursor = push(cursor, bedtime - 75, 'quiet_play', 'calm');
+  cursor = push(cursor, bedtime - 55, 'top_up', 'feed');
+  cursor = push(cursor, bedtime, 'settling', 'calm');
+  push(Math.max(cursor, bedtime), wake + DAY, 'night_sleep', 'sleep');
   return blocks.sort((a, b) => a.start - b.start);
 }
 
@@ -617,7 +621,7 @@ function nowScreen() {
     </section>
     <section class="card noise-card">
       <div class="select-wrap">
-        <span class="select-icon">${fileIcon('sound')}</span>
+        <span class="select-icon">${fileIcon(soundIconName())}</span>
         <select data-action="sound-select">
           <option value="white" ${state.settings.sound === 'white' ? 'selected' : ''}>${t('whiteNoise')}</option>
           <option value="birds" ${state.settings.sound === 'birds' ? 'selected' : ''}>${t('birds')}</option>
@@ -659,14 +663,14 @@ function planScreen() {
   const hours = Array.from({ length: 25 }, (_, i) => state.settings.wakeHour * 60 + i * 60);
   const blocks = schedule.map((b) => {
     const top = 44 + (b.start - state.settings.wakeHour * 60) * PLAN_PX;
-    const height = Math.max(32, (b.end - b.start) * PLAN_PX);
+    const height = Math.max(48, (b.end - b.start) * PLAN_PX);
     return `<button class="plan-block ${b.type}" data-edit-plan="${b.id}" style="top:${top}px;height:${height}px"><div class="block-small">${blockIcon(b)} ${titleFor(b)}</div><div>${clock(b.start)}–${clock(b.end)}</div></button>`;
   }).join('');
   const actual = sessions.map((s) => {
     const sm = (s.start - start) / 60000 + state.settings.wakeHour * 60;
     const em = (s.end - start) / 60000 + state.settings.wakeHour * 60;
     const top = 44 + (sm - state.settings.wakeHour * 60) * PLAN_PX;
-    const height = Math.max(30, (em - sm) * PLAN_PX);
+    const height = Math.max(44, (em - sm) * PLAN_PX);
     return `<button class="actual-block" ${s.active ? '' : `data-edit-sleep="${(s.sourceIds || [s.id]).join(',')}"`} style="top:${top}px;height:${height}px"><div class="block-small">${icon('sleep')} ${t('sleep')}</div><div>${clock(sm)}–${s.active ? t('now') : clock(em)}</div><div>${duration(s.end - s.start)}</div></button>`;
   }).join('');
   const timelineHeight = 44 + DAY * PLAN_PX;
@@ -734,9 +738,8 @@ function dailyBars(sessions) {
   if (!items.length) return `<div class="muted">—</div>`;
   const max = Math.max(...items.map((s) => s.end - s.start));
   return items.map((s) => {
-    const mins = Math.round((s.end - s.start) / 60000);
     const height = 18 + ((s.end - s.start) / max) * 126;
-    return `<div class="bar-wrap"><strong>${mins}m</strong><div class="bar" style="height:${height}px"></div><span>${clockFromMs(s.start)}</span></div>`;
+    return `<div class="bar-wrap"><strong>${duration(s.end - s.start)}</strong><div class="bar" style="height:${height}px"></div><span>${clockFromMs(s.start)}</span></div>`;
   }).join('');
 }
 
@@ -757,7 +760,7 @@ function weeklyBars() {
 function settingsScreen() {
   const s = state.settings;
   return `
-    <h1 class="screen-title">${t('settings')}</h1>
+    <h1 class="screen-title">${t('settingsTitle')}</h1>
     <section class="card settings-grid">
       <h2>${t('babyRoutine')}</h2>
       <div class="muted">${t('age')}</div>
@@ -766,7 +769,7 @@ function settingsScreen() {
       <div class="stepper"><button data-action="wake-setting-minus">−</button><strong>${clock(s.wakeHour * 60)}</strong><button data-action="wake-setting-plus">+</button></div>
       <div class="muted">${t('planStyle')}</div>
       ${segments('scheduleMode', [['fixed', t('fixed')], ['age', t('ageBased')], ['custom', t('custom')]])}
-      <button class="secondary" data-action="restart-setup">${t('restartSetup')}</button>
+      <button class="secondary" data-action="rebuild-routine">${t('restartSetup')}</button>
     </section>
     <section class="card settings-grid">
       <h2>${t('routineSaves')}</h2>
@@ -834,6 +837,12 @@ function escapeHtml(value) {
 
 function segments(key, options) {
   return `<div class="segmented ${options.length === 2 ? 'two' : ''}">${options.map(([value, label]) => `<button class="${state.settings[key] === value ? 'active' : ''}" data-setting="${key}" data-value="${value}">${label}</button>`).join('')}</div>`;
+}
+
+function soundIconName() {
+  if (state.settings.sound === 'birds') return 'bird';
+  if (state.settings.sound === 'rain') return 'rain';
+  return 'sound';
 }
 
 function nav() {
@@ -1046,6 +1055,18 @@ document.addEventListener('click', async (event) => {
   if (action === 'wake-setting-plus') {
     state.settings.wakeHour = (state.settings.wakeHour + 1) % 24;
     save(LS.settings, state.settings);
+    render();
+  }
+  if (action === 'rebuild-routine') {
+    state.settings.scheduleMode = 'age';
+    state.customSchedule = null;
+    save(LS.settings, state.settings);
+    localStorage.removeItem(LS.customSchedule);
+    toast(state.settings.language === 'ru'
+      ? 'План пересобран по возрасту.'
+      : state.settings.language === 'de'
+        ? 'Plan nach Alter neu erstellt.'
+        : 'Age-based plan rebuilt.');
     render();
   }
   if (action === 'restart-setup') {
