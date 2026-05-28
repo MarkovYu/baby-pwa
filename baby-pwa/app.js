@@ -359,6 +359,58 @@ function presetFor(age = 5) {
   return presets.find((p) => age >= p.min && age <= p.max) || presets[presets.length - 1];
 }
 
+function feedingPreset(age = 5) {
+  if (age < 1) return { interval: 120, duration: 30, nightFeeds: 3 };
+  if (age < 2) return { interval: 150, duration: 30, nightFeeds: 3 };
+  if (age < 4) return { interval: 180, duration: 28, nightFeeds: 2 };
+  if (age < 6) return { interval: 200, duration: 25, nightFeeds: 1 };
+  if (age < 8) return { interval: 210, duration: 24, nightFeeds: 0 };
+  if (age < 10) return { interval: 240, duration: 22, nightFeeds: 0 };
+  return { interval: 240, duration: 20, nightFeeds: 0 };
+}
+
+function normalizeNapLabels(blocks, bedtime) {
+  const naps = blocks
+    .filter((block) => block.type === 'sleep' && block.start < bedtime)
+    .sort((a, b) => a.start - b.start);
+  if (!naps.length) return blocks;
+  const longest = naps.reduce((best, block) => (block.end - block.start > best.end - best.start ? block : best), naps[0]);
+  const longestIndex = naps.indexOf(longest);
+  naps.forEach((nap, index) => {
+    if (nap === longest) {
+      nap.labelKey = 'main_nap';
+    } else {
+      const labelNumber = index < longestIndex ? index + 1 : index + 1;
+      nap.labelKey = labelNumber === 1 ? 'nap_1' : labelNumber === 2 ? 'nap_2' : 'nap_4';
+    }
+  });
+  if (naps.length === 1) naps[0].labelKey = 'main_nap';
+  return blocks;
+}
+
+function addNightFeeds(blocks, bedtime, wake, feeding) {
+  const feedTimes = feeding.nightFeeds === 3
+    ? [bedtime + 150, bedtime + 330, bedtime + 510]
+    : feeding.nightFeeds === 2
+      ? [bedtime + 180, bedtime + 420]
+      : feeding.nightFeeds === 1
+        ? [bedtime + 180]
+        : [];
+  if (!feedTimes.length) {
+    blocks.push({ id: `age-night-${blocks.length}`, start: bedtime, end: wake + DAY, labelKey: 'night_sleep', type: 'sleep' });
+    return blocks;
+  }
+  let cursor = bedtime;
+  for (const time of feedTimes) {
+    if (time - cursor >= 30) blocks.push({ id: `age-night-${blocks.length}`, start: cursor, end: time, labelKey: 'night_sleep', type: 'sleep' });
+    blocks.push({ id: `age-night-${blocks.length}`, start: time, end: time + feeding.duration, labelKey: 'dream_feed', type: 'feed' });
+    cursor = time + feeding.duration;
+  }
+  if (wake + DAY - cursor >= 30) blocks.push({ id: `age-night-${blocks.length}`, start: cursor, end: wake + DAY, labelKey: 'night_sleep', type: 'sleep' });
+  return blocks;
+}
+
+
 const fixedSchedule = [
   ['07:00', '07:40', 'wake_feeding', 'feed'],
   ['07:40', '08:30', 'play_tummy', 'active'],
@@ -391,40 +443,75 @@ function generateSchedule() {
   if (state.settings.scheduleMode === 'custom' && Array.isArray(state.customSchedule) && state.customSchedule.length) return state.customSchedule;
   if (state.settings.scheduleMode === 'fixed') return fixedSchedule;
   const p = presetFor(state.settings.ageMonths);
+  const feeding = feedingPreset(state.settings.ageMonths);
   const wake = state.settings.wakeHour * 60;
   const bedtime = normalizeEnd(20 * 60, wake);
+  const eveningStart = bedtime - 150;
+  const walkStart = wake + 4 * 60;
+  const walkEnd = wake + 7.5 * 60;
   const blocks = [];
   let cursor = wake;
   let id = 0;
+  let lastFeedEnd = -Infinity;
+  let walkUsed = false;
   const push = (start, end, labelKey, type) => {
     const safeStart = Math.max(start, blocks.at(-1)?.end ?? start);
     const safeEnd = Math.max(end, safeStart);
     if (safeEnd - safeStart >= 10) blocks.push({ id: `age-${id++}`, start: safeStart, end: safeEnd, labelKey, type });
     return safeEnd;
   };
+  const pushFeed = (start, force = false, labelKey = 'feeding_diaper') => {
+    if (!force && start - lastFeedEnd < feeding.interval - 20) return start;
+    const end = Math.min(start + feeding.duration, bedtime - 90);
+    if (end - start < 10) return start;
+    const result = push(start, end, labelKey, 'feed');
+    lastFeedEnd = result;
+    return result;
+  };
+  const pushAwake = (start, end, labelKey) => {
+    if (end <= start) return start;
+    const isEvening = start >= eveningStart;
+    if (walkUsed || isEvening || end <= walkStart || start >= walkEnd || end - start < 45) {
+      return push(start, end, isEvening ? 'quiet_play' : labelKey, isEvening ? 'calm' : 'active');
+    }
+    let current = start;
+    const walkAt = Math.max(current, walkStart);
+    if (walkAt - current >= 10) current = push(current, walkAt, labelKey, 'active');
+    const walkUntil = Math.min(end, walkAt + 75, walkEnd);
+    if (walkUntil - current >= 20) {
+      current = push(current, walkUntil, 'walk', 'active');
+      walkUsed = true;
+    }
+    if (end - current >= 10) current = push(current, end, current >= eveningStart ? 'quiet_play' : 'play', current >= eveningStart ? 'calm' : 'active');
+    return current;
+  };
   cursor = push(cursor, cursor + 35, 'wake_feeding', 'feed');
+  lastFeedEnd = cursor;
   for (let nap = 1; nap <= p.naps; nap++) {
-    if (cursor >= bedtime - 105) break;
-    const activeEnd = Math.min(cursor + Math.max(45, p.wake - (nap === 1 ? 15 : 0)), bedtime - 100);
-    cursor = push(cursor, activeEnd, nap === 1 ? 'play_tummy' : 'play', 'active');
-    if (cursor >= bedtime - 90) break;
-    cursor = push(cursor, Math.min(cursor + 15, bedtime - 80), 'wind_down', 'calm');
-    if (cursor >= bedtime - 75) break;
+    if (cursor >= bedtime - 125) break;
+    const activeStart = cursor;
+    const activeEnd = Math.min(cursor + Math.max(45, p.wake - (nap === 1 ? 15 : 0)), bedtime - 125);
+    if (activeEnd - activeStart < 25) break;
+    cursor = pushAwake(activeStart, activeEnd, nap === 1 ? 'play_tummy' : 'play');
+    if (cursor >= bedtime - 110) break;
+    cursor = push(cursor, Math.min(cursor + 15, bedtime - 100), 'wind_down', 'calm');
+    if (cursor >= bedtime - 95) break;
     const napLength = nap === Math.ceil(p.naps / 2) ? p.napMinutes + 20 : p.napMinutes;
-    const napEnd = Math.min(cursor + napLength, bedtime - 65);
+    const napEnd = Math.min(cursor + napLength, bedtime - 95);
+    if (napEnd - cursor < 20) break;
     cursor = push(cursor, napEnd, nap === 1 ? 'nap_1' : nap === 2 ? 'nap_2' : nap === 3 ? 'main_nap' : 'nap_4', 'sleep');
-    if (nap < p.naps && cursor < bedtime - 105) {
-      cursor = push(cursor, Math.min(cursor + 30, bedtime - 105), 'feeding_diaper', 'feed');
+    if (cursor < eveningStart) {
+      cursor = pushFeed(cursor, state.settings.ageMonths < 4);
     }
   }
-  if (cursor < bedtime - 95) {
-    cursor = push(cursor, Math.min(cursor + 70, bedtime - 95), 'walk', 'active');
-  }
   cursor = push(cursor, bedtime - 75, 'quiet_play', 'calm');
-  cursor = push(cursor, bedtime - 55, 'top_up', 'feed');
+  if (bedtime - lastFeedEnd >= 80) {
+    cursor = push(cursor, bedtime - 55, 'top_up', 'feed');
+    lastFeedEnd = cursor;
+  }
   cursor = push(cursor, bedtime, 'settling', 'calm');
-  push(Math.max(cursor, bedtime), wake + DAY, 'night_sleep', 'sleep');
-  return blocks.sort((a, b) => a.start - b.start);
+  addNightFeeds(blocks, Math.max(cursor, bedtime), wake, feeding);
+  return normalizeNapLabels(blocks, bedtime).sort((a, b) => a.start - b.start);
 }
 
 function activeSessions(offset = 0) {
