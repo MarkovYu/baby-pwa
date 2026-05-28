@@ -253,8 +253,10 @@ const defaultSettings = {
   scheduleMode: 'age',
 };
 
+const initialTab = new URLSearchParams(location.search).get('tab');
+
 const state = {
-  tab: 'now',
+  tab: ['now', 'plan', 'stats', 'settings'].includes(initialTab) ? initialTab : 'now',
   settings: load(LS.settings, defaultSettings),
   sessions: load(LS.sessions, []),
   customSchedule: load(LS.customSchedule, null),
@@ -266,6 +268,7 @@ const state = {
   draftWake: 7,
   tick: Date.now(),
   noisePlaying: false,
+  planAtTop: true,
 };
 
 function load(key, fallback) {
@@ -537,7 +540,7 @@ function renderApp() {
       ${state.tab === 'settings' ? settingsScreen() : ''}
     </main>
     ${state.tab === 'now' ? sleepButton() : ''}
-    ${effects()}
+    ${state.tab === 'now' && (state.sleepStart || state.noisePlaying) ? effects() : ''}
     ${nav()}
     ${state.editor ? editorModal() : ''}
   `;
@@ -604,7 +607,7 @@ function scheduleCard(block, label, featured) {
 }
 
 function sleepButton() {
-  return `<button class="fab ${state.sleepStart ? 'awake' : ''}" data-action="toggle-sleep"><div><div class="moon">☾</div>${state.sleepStart ? t('wake') : t('startNap')}</div></button>`;
+  return `<button class="fab ${state.sleepStart ? 'awake' : ''}" data-action="toggle-sleep"><div><div class="moon">${sleepSvg(34)}</div>${state.sleepStart ? t('wake') : t('startNap')}</div></button>`;
 }
 
 function planScreen() {
@@ -638,6 +641,7 @@ function planScreen() {
       }).join('')}
       ${blocks}${actual}
     </section>
+    <button class="plan-jump ${state.planAtTop ? 'down' : 'up'}" data-action="plan-jump" aria-label="${state.planAtTop ? t('now') : t('plan')}">${chevronSvg()}</button>
   `;
 }
 
@@ -753,7 +757,7 @@ function editorModal() {
 }
 
 function effects() {
-  const moons = state.sleepStart ? Array.from({ length: 7 }, (_, i) => `<span style="--i:${i}">☾</span>`).join('') : '';
+  const moons = state.sleepStart ? Array.from({ length: 7 }, (_, i) => `<span style="--i:${i}">${sleepSvg(22)}</span>`).join('') : '';
   const notes = state.noisePlaying ? Array.from({ length: 6 }, (_, i) => `<span style="--i:${i}">♪</span>`).join('') : '';
   return `<div class="float-effects moons">${moons}</div><div class="float-effects notes">${notes}</div>`;
 }
@@ -825,6 +829,7 @@ function bulbSvg() { return `<svg width="28" height="28" viewBox="0 0 24 24" fil
 function planSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`; }
 function barsSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M5 20V9M12 20V4M19 20v-7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`; }
 function settingsSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/><path d="M19 13.5v-3l-2-.4c-.2-.6-.4-1.1-.7-1.6l1.1-1.7-2.2-2.2-1.7 1.1c-.5-.3-1-.5-1.6-.7L11.5 3h-3l-.4 2c-.6.2-1.1.4-1.6.7L4.8 4.6 2.6 6.8l1.1 1.7c-.3.5-.5 1-.7 1.6l-2 .4v3l2 .4c.2.6.4 1.1.7 1.6l-1.1 1.7 2.2 2.2 1.7-1.1c.5.3 1 .5 1.6.7l.4 2h3l.4-2c.6-.2 1.1-.4 1.6-.7l1.7 1.1 2.2-2.2-1.1-1.7c.3-.5.5-1 .7-1.6l2-.4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`; }
+function chevronSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 
 document.addEventListener('click', async (event) => {
   const target = event.target.closest('button,[data-lang],[data-setting],[data-save-slot],[data-load-slot]');
@@ -880,6 +885,17 @@ document.addEventListener('click', async (event) => {
     render();
   }
   if (action === 'toggle-noise') await toggleNoise();
+  if (action === 'plan-jump') {
+    if (window.scrollY < 120) {
+      const minute = nowMinute();
+      const timeline = document.querySelector('.timeline');
+      const top = timeline ? timeline.getBoundingClientRect().top + window.scrollY : 0;
+      const y = top + Math.max(0, minute - state.settings.wakeHour * 60) * PLAN_PX - 120;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
   if (action === 'age-setting-minus') {
     state.settings.ageMonths = Math.max(0, state.settings.ageMonths - 1);
     save(LS.settings, state.settings);
@@ -991,6 +1007,20 @@ document.addEventListener('change', (event) => {
     }
   }
 });
+
+function updatePlanJumpButton() {
+  if (state.tab !== 'plan') return;
+  const atTop = window.scrollY < 120;
+  if (state.planAtTop === atTop) return;
+  state.planAtTop = atTop;
+  const button = document.querySelector('.plan-jump');
+  if (!button) return;
+  button.classList.toggle('down', atTop);
+  button.classList.toggle('up', !atTop);
+  button.setAttribute('aria-label', atTop ? t('now') : t('plan'));
+}
+
+window.addEventListener('scroll', updatePlanJumpButton, { passive: true });
 
 setInterval(() => {
   state.tick = Date.now();
