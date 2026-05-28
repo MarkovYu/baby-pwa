@@ -63,18 +63,18 @@ button {
   justify-content: space-between;
   align-items: flex-start;
   gap: 18px;
-  margin: 12px 0 22px;
+  margin: 8px 0 14px;
 }
 
 .date {
   color: var(--primary);
   font-weight: 900;
-  font-size: 18px;
+  font-size: 16px;
   letter-spacing: .02em;
 }
 
 .clock {
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 500;
   line-height: .95;
   letter-spacing: 0;
@@ -85,12 +85,12 @@ button {
   border: 1px solid var(--line);
   border-radius: 22px;
   box-shadow: 0 14px 34px rgba(75, 63, 132, .1);
-  padding: 14px;
-  margin: 0 0 11px;
+  padding: 12px;
+  margin: 0 0 9px;
 }
 
 .schedule-card {
-  min-height: 92px;
+  min-height: 82px;
   display: grid;
   gap: 7px;
 }
@@ -108,7 +108,7 @@ button {
 .kicker {
   color: var(--primary);
   text-transform: uppercase;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .08em;
 }
@@ -128,8 +128,8 @@ button {
 }
 
 .icon-dot {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -139,14 +139,14 @@ button {
 }
 
 .block-title {
-  font-size: 23px;
+  font-size: 20px;
   line-height: 1.08;
   font-weight: 950;
   min-width: 0;
 }
 
 .block-time {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.1;
   font-weight: 900;
   color: var(--ink);
@@ -167,14 +167,14 @@ button {
 
 .sleep-state strong {
   display: block;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.05;
   margin-bottom: 6px;
 }
 
 .noise-card {
   display: grid;
-  grid-template-columns: 1fr 64px;
+  grid-template-columns: 1fr 54px;
   align-items: center;
   gap: 14px;
 }
@@ -185,13 +185,13 @@ button {
 
 .select-wrap select {
   width: 100%;
-  min-height: 58px;
-  border-radius: 18px;
+  min-height: 50px;
+  border-radius: 16px;
   border: 2px solid var(--primary);
   color: var(--ink);
   background: var(--primary-soft);
   padding: 0 44px 0 16px;
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 900;
   appearance: none;
 }
@@ -210,8 +210,8 @@ button {
 }
 
 .play {
-  width: 64px;
-  height: 64px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 25%, #d8d4ff, #746ce8);
   color: white;
@@ -224,13 +224,13 @@ button {
 .play:active, .fab:active, .primary:active, .tab:active { transform: scale(.94); }
 
 .summary .big {
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1;
   font-weight: 950;
 }
 
 .progress {
-  height: 18px;
+  height: 15px;
   background: transparent;
   border: 3px solid #133746;
   border-radius: 999px;
@@ -249,10 +249,10 @@ button {
 .fab {
   position: fixed;
   left: 50%;
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  bottom: calc(72px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: 126px;
-  height: 126px;
+  width: 112px;
+  height: 112px;
   border-radius: 50%;
   background: linear-gradient(180deg, #9e98ff, #746ce8);
   color: white;
@@ -261,7 +261,7 @@ button {
   place-items: center;
   z-index: 10;
   text-align: center;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 950;
 }
 
@@ -270,7 +270,7 @@ button {
 }
 
 .fab .moon {
-  font-size: 36px;
+  font-size: 30px;
   line-height: 1;
 }
 
@@ -279,15 +279,15 @@ button {
   left: 50%;
   bottom: env(safe-area-inset-bottom);
   transform: translateX(-50%);
-  width: min(calc(100% - 28px), 492px);
-  height: 72px;
+  width: min(calc(100% - 24px), 476px);
+  height: 66px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   padding: 10px;
   background: color-mix(in srgb, var(--surface) 95%, transparent);
   border: 1px solid var(--line);
-  border-radius: 28px;
+  border-radius: 24px;
   box-shadow: 0 10px 30px rgba(38, 34, 78, .16);
   z-index: 9;
   backdrop-filter: blur(16px);
@@ -312,7 +312,7 @@ button {
 .tab svg { width: 22px; height: 22px; }
 
 .screen-title {
-  font-size: 34px;
+  font-size: 30px;
   line-height: .95;
   font-weight: 950;
   margin: 8px 0 22px;
@@ -321,7 +321,7 @@ button {
 .timeline {
   display: grid;
   grid-template-columns: 58px 1fr 1fr;
-  min-height: 1280px;
+  min-height: 1220px;
   position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -371,6 +371,17 @@ button {
   font-size: 12px;
   font-weight: 900;
   box-shadow: 0 8px 14px rgba(30, 36, 42, .08);
+  z-index: 2;
+}
+
+.actual-tap-zone {
+  position: absolute;
+  top: 44px;
+  bottom: 0;
+  left: calc(58px + (100% - 58px) / 2);
+  width: calc((100% - 58px) / 2);
+  background: transparent;
+  z-index: 1;
 }
 
 .plan-block {
@@ -440,6 +451,40 @@ button {
   min-height: 8px;
   border-radius: 12px;
   background: var(--primary);
+}
+
+.float-effects {
+  position: fixed;
+  left: 50%;
+  bottom: calc(132px + env(safe-area-inset-bottom));
+  width: 160px;
+  height: 160px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 8;
+}
+
+.float-effects span {
+  position: absolute;
+  left: calc(50% + (var(--i) - 3) * 13px);
+  bottom: 8px;
+  color: var(--primary);
+  font-size: 22px;
+  font-weight: 950;
+  opacity: 0;
+  animation: floatUp 2.6s linear infinite;
+  animation-delay: calc(var(--i) * .34s);
+}
+
+.notes span {
+  left: calc(50% + (var(--i) - 2) * 16px);
+  animation-duration: 2.1s;
+}
+
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(.8); opacity: 0; }
+  18% { opacity: .85; }
+  100% { transform: translateY(-130px) scale(1.1); opacity: 0; }
 }
 
 .settings-grid {
@@ -707,9 +752,9 @@ button {
 .hidden { display: none !important; }
 
 @media (max-width: 390px) {
-  .block-title { font-size: 21px; }
-  .block-time { font-size: 16px; }
-  .fab { width: 116px; height: 116px; font-size: 15px; }
+  .block-title { font-size: 19px; }
+  .block-time { font-size: 15px; }
+  .fab { width: 104px; height: 104px; font-size: 14px; }
   .onboard-card { padding: 22px; border-radius: 28px; }
   .onboard-title { font-size: 30px; line-height: 1.08; }
   .onboard-body { font-size: 15px; }

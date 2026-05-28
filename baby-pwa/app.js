@@ -17,6 +17,7 @@ const labels = {
     plan: 'План',
     actual: 'Факт',
     stats: 'Стат.',
+    statsTitle: 'Статистика',
     settings: 'Настр.',
     currentSleep: 'Текущий сон',
     awake: 'Не спит',
@@ -78,6 +79,7 @@ const labels = {
     end: 'Конец',
     cancel: 'Отмена',
     saveChanges: 'Сохранить',
+    addSleep: 'Добавить сон',
   },
   en: {
     now: 'Now',
@@ -86,6 +88,7 @@ const labels = {
     plan: 'Plan',
     actual: 'Actual',
     stats: 'Stats',
+    statsTitle: 'Stats',
     settings: 'Settings',
     currentSleep: 'Current sleep',
     awake: 'Awake',
@@ -147,6 +150,7 @@ const labels = {
     end: 'End',
     cancel: 'Cancel',
     saveChanges: 'Save',
+    addSleep: 'Add sleep',
   },
   de: {
     now: 'Jetzt',
@@ -155,6 +159,7 @@ const labels = {
     plan: 'Plan',
     actual: 'Ist',
     stats: 'Stats',
+    statsTitle: 'Statistik',
     settings: 'Einst.',
     currentSleep: 'Aktueller Schlaf',
     awake: 'Wach',
@@ -216,6 +221,7 @@ const labels = {
     end: 'Ende',
     cancel: 'Abbrechen',
     saveChanges: 'Sichern',
+    addSleep: 'Schlaf hinzufügen',
   }
 };
 
@@ -531,6 +537,7 @@ function renderApp() {
       ${state.tab === 'settings' ? settingsScreen() : ''}
     </main>
     ${state.tab === 'now' ? sleepButton() : ''}
+    ${effects()}
     ${nav()}
     ${state.editor ? editorModal() : ''}
   `;
@@ -624,6 +631,7 @@ function planScreen() {
     <section class="timeline">
       <div class="col-head plan-head">${t('plan')}</div>
       <div class="col-head actual-head">${t('actual')}</div>
+      <button class="actual-tap-zone" data-add-sleep-zone aria-label="${t('addSleep')}"></button>
       ${hours.map((h) => {
         const top = 44 + (h - state.settings.wakeHour * 60) * PLAN_PX;
         return `<div class="time-label" style="top:${top - 8}px">${clock(h)}</div><div class="hour-line" style="top:${top}px"></div>`;
@@ -654,8 +662,8 @@ function statsScreen() {
   const planned = plannedSleepUntil(schedule, minute);
   const match = overlapPercent(schedule, sessions, start);
   return `
-    <div class="kicker">${t('stats')}</div>
-    <h1 class="screen-title">${t('stats')}</h1>
+    <div class="kicker">${t('sleep')}</div>
+    <h1 class="screen-title">${t('statsTitle')}</h1>
     <section class="card">
       ${statRow(t('loggedSoFar'), duration(actual))}
       ${statRow(t('plannedByNow'), duration(planned))}
@@ -724,11 +732,13 @@ function editorModal() {
   return `
     <div class="modal-backdrop" data-action="close-editor">
       <form class="modal-card" data-editor-form>
-        <h2>${t('editBlock')}</h2>
-        <label>${t('title')}<input name="title" value="${escapeHtml(e.title)}" /></label>
-        <label>${t('type')}<select name="type">
-          ${['sleep', 'feed', 'active', 'calm'].map((type) => `<option value="${type}" ${e.type === type ? 'selected' : ''}>${type}</option>`).join('')}
-        </select></label>
+        <h2>${e.mode === 'sleep' ? t('addSleep') : t('editBlock')}</h2>
+        ${e.mode === 'sleep' ? '' : `
+          <label>${t('title')}<input name="title" value="${escapeHtml(e.title)}" /></label>
+          <label>${t('type')}<select name="type">
+            ${['sleep', 'feed', 'active', 'calm'].map((type) => `<option value="${type}" ${e.type === type ? 'selected' : ''}>${type}</option>`).join('')}
+          </select></label>
+        `}
         <div class="modal-grid">
           <label>${t('start')}<input name="start" type="time" value="${clock(e.start)}" /></label>
           <label>${t('end')}<input name="end" type="time" value="${clock(e.end)}" /></label>
@@ -740,6 +750,12 @@ function editorModal() {
       </form>
     </div>
   `;
+}
+
+function effects() {
+  const moons = state.sleepStart ? Array.from({ length: 7 }, (_, i) => `<span style="--i:${i}">☾</span>`).join('') : '';
+  const notes = state.noisePlaying ? Array.from({ length: 6 }, (_, i) => `<span style="--i:${i}">♪</span>`).join('') : '';
+  return `<div class="float-effects moons">${moons}</div><div class="float-effects notes">${notes}</div>`;
 }
 
 function escapeHtml(value) {
@@ -900,6 +916,13 @@ document.addEventListener('click', async (event) => {
       render();
     }
   }
+  if (target.dataset.addSleepZone !== undefined) {
+    const rect = target.getBoundingClientRect();
+    const raw = state.settings.wakeHour * 60 + Math.max(0, event.clientY - rect.top - 44) / PLAN_PX;
+    const start = Math.max(state.settings.wakeHour * 60, Math.round(raw / 5) * 5);
+    state.editor = { mode: 'sleep', start, end: start + 30 };
+    render();
+  }
   if (target.dataset.saveSlot) {
     const i = Number(target.dataset.saveSlot);
     state.saves[i] = { savedAt: Date.now(), settings: { ...state.settings }, schedule: generateSchedule() };
@@ -927,6 +950,19 @@ document.addEventListener('submit', (event) => {
   const data = new FormData(form);
   const start = toMinute(data.get('start'));
   const end = normalizeEnd(toMinute(data.get('end')), start);
+  if (state.editor.mode === 'sleep') {
+    const base = dayStartDate().getTime();
+    const item = {
+      id: `sleep-${Date.now()}`,
+      start: base + (start - state.settings.wakeHour * 60) * 60000,
+      end: base + (end - state.settings.wakeHour * 60) * 60000,
+    };
+    state.sessions.push(item);
+    save(LS.sessions, state.sessions);
+    state.editor = null;
+    render();
+    return;
+  }
   const schedule = generateSchedule().map((item) => item.id === state.editor.id ? {
     ...item,
     title: String(data.get('title') || item.title),
