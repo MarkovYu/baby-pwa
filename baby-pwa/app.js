@@ -393,6 +393,11 @@ function generateCsvSchedule() {
   }).sort((a, b) => a.start - b.start);
 }
 
+function isCurrentCustomSchedule(schedule) {
+  if (!Array.isArray(schedule) || !schedule.length) return false;
+  return schedule.some((block) => String(block.id || '').startsWith('csv-') || block.source === 'csv');
+}
+
 function feedingPreset(age = 5) {
   if (age < 1) return { interval: 120, duration: 30, nightFeeds: 3 };
   if (age < 2) return { interval: 150, duration: 30, nightFeeds: 3 };
@@ -474,7 +479,7 @@ const fixedSchedule = [
 });
 
 function generateSchedule() {
-  if (state.settings.scheduleMode === 'custom' && Array.isArray(state.customSchedule) && state.customSchedule.length) return state.customSchedule;
+  if (state.settings.scheduleMode === 'custom' && isCurrentCustomSchedule(state.customSchedule)) return state.customSchedule;
   if (state.settings.scheduleMode === 'fixed') return fixedSchedule;
   const csvSchedule = generateCsvSchedule();
   if (csvSchedule) return csvSchedule;
@@ -784,6 +789,7 @@ function planScreen() {
   const schedule = generateSchedule();
   const sessions = activeSessions();
   const start = dayStartDate().getTime();
+  const minute = nowMinute();
   const hours = Array.from({ length: 25 }, (_, i) => state.settings.wakeHour * 60 + i * 60);
   const blocks = schedule.map((b) => {
     const top = 44 + (b.start - state.settings.wakeHour * 60) * PLAN_PX;
@@ -798,6 +804,10 @@ function planScreen() {
     return `<button class="actual-block" ${s.active ? '' : `data-edit-sleep="${(s.sourceIds || [s.id]).join(',')}"`} style="top:${top}px;height:${height}px"><div class="block-small">${icon('sleep')} ${t('sleep')}</div><div>${clock(sm)}–${s.active ? t('now') : clock(em)}</div><div>${duration(s.end - s.start)}</div></button>`;
   }).join('');
   const timelineHeight = 44 + DAY * PLAN_PX;
+  const currentTop = 44 + Math.max(0, Math.min(DAY, minute - state.settings.wakeHour * 60)) * PLAN_PX;
+  const currentLine = minute >= state.settings.wakeHour * 60 && minute <= state.settings.wakeHour * 60 + DAY
+    ? `<div class="current-time-line" style="top:${currentTop}px"><span>${clock(minute)}</span></div>`
+    : '';
   return `
     <h1 class="screen-title">${t('plan')}</h1>
     <div class="week">${weekChips()}</div>
@@ -809,7 +819,7 @@ function planScreen() {
         const top = 44 + (h - state.settings.wakeHour * 60) * PLAN_PX;
         return `<div class="time-label" style="top:${top - 8}px">${clock(h)}</div><div class="hour-line" style="top:${top}px"></div>`;
       }).join('')}
-      ${blocks}${actual}
+      ${blocks}${actual}${currentLine}
     </section>
     <button class="plan-jump ${state.planAtTop ? 'down' : 'up'}" data-action="plan-jump" aria-label="${state.planAtTop ? t('now') : t('plan')}">${chevronSvg()}</button>
   `;

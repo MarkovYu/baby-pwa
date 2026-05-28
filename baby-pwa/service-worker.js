@@ -1,9 +1,11 @@
-const CACHE = 'baby-rhythm-pwa-v9';
+const CACHE = 'baby-rhythm-pwa-v11';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './schedule-data.js',
+  './infant_sleep_daily_schedule_0_24_months.csv',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon.png',

@@ -426,6 +426,40 @@ button {
   border-top: 1px solid var(--line);
 }
 
+.current-time-line {
+  position: absolute;
+  left: 58px;
+  right: 0;
+  height: 0;
+  border-top: 2px solid #d45148;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.current-time-line::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d45148;
+}
+
+.current-time-line span {
+  position: absolute;
+  right: 8px;
+  top: -15px;
+  background: color-mix(in srgb, var(--surface) 92%, white);
+  color: #d45148;
+  border: 1px solid color-mix(in srgb, #d45148 40%, var(--line));
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
 .col-head {
   position: sticky;
   top: 0;
