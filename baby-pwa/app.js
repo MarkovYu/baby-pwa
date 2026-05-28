@@ -1,5 +1,5 @@
 const DAY = 24 * 60;
-const PLAN_PX = 2.05;
+const PLAN_PX = 2.75;
 const LS = {
   settings: 'baby-pwa-settings-v1',
   sessions: 'baby-pwa-sessions-v1',
@@ -269,6 +269,7 @@ const state = {
   tick: Date.now(),
   noisePlaying: false,
   planAtTop: true,
+  installPrompt: null,
 };
 
 function load(key, fallback) {
@@ -305,7 +306,7 @@ function normalizeEnd(end, start) {
 }
 
 function clock(minute) {
-  const value = ((minute % DAY) + DAY) % DAY;
+  const value = ((Math.round(minute) % DAY) + DAY) % DAY;
   return `${pad(Math.floor(value / 60))}:${pad(value % 60)}`;
 }
 
@@ -484,14 +485,14 @@ function overlapPercent(schedule, sessions, dayStart) {
 }
 
 function icon(type) {
-  if (type === 'sleep') return sleepMiniSvg();
-  if (type === 'feed') return bottleSvg();
-  if (type === 'active') return toysSvg();
+  if (type === 'sleep') return fileIcon('sleep');
+  if (type === 'feed') return fileIcon('bottle');
+  if (type === 'active') return fileIcon('toys');
   return calmSvg();
 }
 
 function blockIcon(block) {
-  if (block.labelKey === 'walk') return strollerSvg();
+  if (block.labelKey === 'walk') return fileIcon('stroller');
   return icon(block.type);
 }
 
@@ -593,6 +594,9 @@ function nowScreen() {
   const planned = plannedSleepUntil(schedule, minute);
   const pct = planned ? Math.min(100, Math.round((actual / planned) * 100)) : 0;
   const time = new Date(state.tick);
+  const sleepNote = state.sleepStart
+    ? `${state.settings.language === 'ru' ? 'Начался с' : state.settings.language === 'de' ? 'Seit' : 'Started at'} ${clockFromMs(state.sleepStart)}`
+    : t('tapWhenAsleep');
   return `
     <div class="top">
       <div class="date">${time.toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
@@ -603,7 +607,7 @@ function nowScreen() {
     <section class="card sleep-state">
       <div>
         <strong>${t('currentSleep')}</strong>
-        <div class="muted">${state.sleepStart ? `${duration(Date.now() - state.sleepStart)} · ${clockFromMs(state.sleepStart)}` : t('tapWhenAsleep')}</div>
+        <div class="muted">${sleepNote}</div>
       </div>
       <strong>${state.sleepStart ? duration(Date.now() - state.sleepStart) : t('awake')}</strong>
     </section>
@@ -613,7 +617,7 @@ function nowScreen() {
     </section>
     <section class="card noise-card">
       <div class="select-wrap">
-        <span class="select-icon">${soundSvg()}</span>
+        <span class="select-icon">${fileIcon('sound')}</span>
         <select data-action="sound-select">
           <option value="white" ${state.settings.sound === 'white' ? 'selected' : ''}>${t('whiteNoise')}</option>
           <option value="birds" ${state.settings.sound === 'birds' ? 'selected' : ''}>${t('birds')}</option>
@@ -667,7 +671,6 @@ function planScreen() {
   }).join('');
   const timelineHeight = 44 + DAY * PLAN_PX;
   return `
-    <div class="kicker">${t('plan')}</div>
     <h1 class="screen-title">${t('plan')}</h1>
     <div class="week">${weekChips()}</div>
     <section class="timeline" style="height:${timelineHeight}px">
@@ -705,7 +708,6 @@ function statsScreen() {
   const planned = plannedSleepUntil(schedule, minute);
   const match = overlapPercent(schedule, sessions, start);
   return `
-    <div class="kicker">${t('sleep')}</div>
     <h1 class="screen-title">${t('statsTitle')}</h1>
     <section class="card">
       ${statRow(t('loggedSoFar'), duration(actual))}
@@ -714,10 +716,7 @@ function statsScreen() {
     </section>
     <section class="card">
       <h2>${t('sleepEpisodes')}</h2>
-      <div class="bars">${sessions.filter((s) => s.end - s.start >= 5 * 60000).slice(0, 6).map((s) => {
-        const mins = Math.round((s.end - s.start) / 60000);
-        return `<div class="bar-wrap"><strong>${mins}m</strong><div class="bar" style="height:${Math.max(10, mins * 1.8)}px"></div><span>${clockFromMs(s.start)}</span></div>`;
-      }).join('') || `<div class="muted">—</div>`}</div>
+      <div class="bars">${dailyBars(sessions)}</div>
     </section>
     <section class="card">
       <h2>${t('weekSleep')}</h2>
@@ -730,21 +729,34 @@ function statRow(label, value) {
   return `<div class="row" style="padding:8px 0"><span class="muted">${label}</span><strong>${value}</strong></div>`;
 }
 
+function dailyBars(sessions) {
+  const items = sessions.filter((s) => s.end - s.start >= 5 * 60000).slice(0, 6);
+  if (!items.length) return `<div class="muted">—</div>`;
+  const max = Math.max(...items.map((s) => s.end - s.start));
+  return items.map((s) => {
+    const mins = Math.round((s.end - s.start) / 60000);
+    const height = 18 + ((s.end - s.start) / max) * 126;
+    return `<div class="bar-wrap"><strong>${mins}m</strong><div class="bar" style="height:${height}px"></div><span>${clockFromMs(s.start)}</span></div>`;
+  }).join('');
+}
+
 function weeklyBars() {
-  return Array.from({ length: 7 }, (_, i) => {
+  const totals = Array.from({ length: 7 }, (_, i) => {
     const offset = i - 6;
     const list = activeSessions(offset);
     const total = list.reduce((sum, s) => sum + s.end - s.start, 0);
-    const mins = Math.round(total / 60000);
-    const date = dayStartDate(offset);
-    return `<div class="bar-wrap"><strong>${duration(total)}</strong><div class="bar" style="height:${Math.max(8, mins / 5)}px"></div><span>${date.toLocaleDateString(locale(), { weekday: 'short' })}</span></div>`;
+    return { total, date: dayStartDate(offset) };
+  });
+  const max = Math.max(...totals.map((item) => item.total), 1);
+  return totals.map(({ total, date }) => {
+    const height = total ? 18 + (total / max) * 126 : 8;
+    return `<div class="bar-wrap"><strong>${duration(total)}</strong><div class="bar" style="height:${height}px"></div><span>${date.toLocaleDateString(locale(), { weekday: 'short' })}</span></div>`;
   }).join('');
 }
 
 function settingsScreen() {
   const s = state.settings;
   return `
-    <div class="kicker">${t('settings')}</div>
     <h1 class="screen-title">${t('settings')}</h1>
     <section class="card settings-grid">
       <h2>${t('babyRoutine')}</h2>
@@ -766,6 +778,16 @@ function settingsScreen() {
       <div class="theme-line">${segments('theme', [['day', t('day')], ['night', t('night')]])}</div>
       <h2>${t('language')}</h2>
       ${segments('language', [['en', '🇬🇧'], ['de', '🇩🇪'], ['ru', '🇷🇺']])}
+    </section>
+    <section class="card settings-grid danger-card">
+      <h2>${state.settings.language === 'ru' ? 'Веб-приложение' : state.settings.language === 'de' ? 'Web-App' : 'Web app'}</h2>
+      <div class="muted">${state.settings.language === 'ru' ? 'Установить сайт на экран телефона как приложение.' : state.settings.language === 'de' ? 'Diese Website wie eine App installieren.' : 'Install this site on your phone like an app.'}</div>
+      <button class="primary compact" data-action="install-app">${state.settings.language === 'ru' ? 'Установить веб-приложение' : state.settings.language === 'de' ? 'Web-App installieren' : 'Install web app'}</button>
+    </section>
+    <section class="card settings-grid danger-card">
+      <h2>${state.settings.language === 'ru' ? 'Данные сна' : state.settings.language === 'de' ? 'Schlafdaten' : 'Sleep data'}</h2>
+      <div class="muted">${state.settings.language === 'ru' ? 'Удаляет только записанные интервалы сна и текущий таймер.' : state.settings.language === 'de' ? 'Löscht nur Schlafprotokolle und den aktiven Timer.' : 'Deletes only sleep logs and the active sleep timer.'}</div>
+      <button class="danger" data-action="clear-sleep-data">${state.settings.language === 'ru' ? 'Удалить информацию о сне' : state.settings.language === 'de' ? 'Schlafdaten löschen' : 'Delete sleep data'}</button>
     </section>
     <section class="card settings-grid danger-card">
       <h2>${state.settings.language === 'ru' ? 'Кэш сайта' : state.settings.language === 'de' ? 'Website-Cache' : 'Site cache'}</h2>
@@ -872,16 +894,17 @@ function pauseSvg() { return `<svg width="28" height="28" viewBox="0 0 24 24"><p
 function miniSvg(content, viewBox = '0 0 24 24') {
   return `<svg class="svg-icon" viewBox="${viewBox}" fill="none" aria-hidden="true">${content}</svg>`;
 }
+function fileIcon(name) { return `<img class="svg-icon" src="./icons/${name}.svg" alt="" loading="eager" />`; }
 function sleepMiniSvg() { return miniSvg(`<path d="M19.8 14.1c-1.1 4-4.8 6.9-9.1 6.9A9.7 9.7 0 0 1 8.2 2c.7-.2 1.1.6.7 1.1A7 7 0 0 0 14.2 14c1.7 0 3.2-.6 4.4-1.6.6-.5 1.4.2 1.2 1.7Z" fill="currentColor"/>`); }
 function calmSvg() { return miniSvg(`<path d="M4 13c2.2-2.2 4.4-2.2 6.6 0s4.4 2.2 6.6 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M4 8c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
 function bottleSvg() { return miniSvg(`<path d="M10 3h4v3l-1 1v2.2l4 4V20a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6.8l4-4V7l-1-1V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15h6M9 18h6M10 6h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
 function toysSvg() { return miniSvg(`<path d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6v3H6v-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 19c2.6 1.5 5.4 1.5 8 0M9 10h.1M15 10h.1M10 13c1.2 1 2.8 1 4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
 function strollerSvg() { return miniSvg(`<path d="M8 6h8a5 5 0 0 1-5 5H7a5 5 0 0 1 5-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 11h10l-2 5H9l-2-5ZM8 20h.1M16 20h.1M4 6c0-2 1-3 3-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
 function soundSvg() { return miniSvg(`<path d="M4 10v4h3l4 4V6l-4 4H4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 9c.8.8 1.2 1.8 1.2 3S15.8 14.2 15 15M18 7c1.4 1.4 2 3 2 5s-.6 3.6-2 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
-function bulbSvg() { return miniSvg(`<path d="M9 21h6M10 17h4M8 14c-1.2-1-2-2.5-2-4a6 6 0 1 1 12 0c0 1.5-.8 3-2 4-.8.7-1 1.3-1 2H9c0-.7-.2-1.3-1-2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
-function planSvg() { return miniSvg(`<path d="M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 12h8M8 16h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
-function barsSvg() { return miniSvg(`<path d="M5 20V10M12 20V5M19 20v-7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>`); }
-function settingsSvg() { return miniSvg(`<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/><path d="M19 13.5v-3l-2-.4a7.5 7.5 0 0 0-.7-1.6l1.1-1.7-2.2-2.2-1.7 1.1a7.5 7.5 0 0 0-1.6-.7L11.5 3h-3l-.4 2a7.5 7.5 0 0 0-1.6.7L4.8 4.6 2.6 6.8l1.1 1.7a7.5 7.5 0 0 0-.7 1.6l-2 .4v3l2 .4c.2.6.4 1.1.7 1.6l-1.1 1.7 2.2 2.2 1.7-1.1c.5.3 1 .5 1.6.7l.4 2h3l.4-2c.6-.2 1.1-.4 1.6-.7l1.7 1.1 2.2-2.2-1.1-1.7c.3-.5.5-1 .7-1.6l2-.4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>`); }
+function bulbSvg() { return fileIcon('bulb'); }
+function planSvg() { return fileIcon('plan'); }
+function barsSvg() { return fileIcon('graphs'); }
+function settingsSvg() { return fileIcon('settings'); }
 function chevronSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 
 document.addEventListener('click', async (event) => {
@@ -939,6 +962,38 @@ document.addEventListener('click', async (event) => {
     render();
   }
   if (action === 'toggle-noise') await toggleNoise();
+  if (action === 'install-app') {
+    if (state.installPrompt) {
+      state.installPrompt.prompt();
+      await state.installPrompt.userChoice.catch(() => {});
+      state.installPrompt = null;
+    } else {
+      toast(state.settings.language === 'ru'
+        ? 'Откройте меню браузера и выберите «Добавить на главный экран».'
+        : state.settings.language === 'de'
+          ? 'Öffne das Browser-Menü und wähle „Zum Startbildschirm hinzufügen“.'
+          : 'Open the browser menu and choose “Add to home screen”.');
+    }
+  }
+  if (action === 'clear-sleep-data') {
+    const first = state.settings.language === 'ru'
+      ? 'Удалить всю информацию о сне? План и сейвы распорядка останутся.'
+      : state.settings.language === 'de'
+        ? 'Alle Schlafdaten löschen? Plan und Routine-Saves bleiben.'
+        : 'Delete all sleep data? Plan and routine saves will stay.';
+    const second = state.settings.language === 'ru'
+      ? 'Подтвердите ещё раз: вы понимаете, что записи сна будут удалены.'
+      : state.settings.language === 'de'
+        ? 'Bitte noch einmal bestätigen: Schlafprotokolle werden gelöscht.'
+        : 'Confirm again: you understand sleep logs will be deleted.';
+    if (window.confirm(first) && window.confirm(second)) {
+      state.sessions = [];
+      state.sleepStart = 0;
+      localStorage.removeItem(LS.sleepStart);
+      save(LS.sessions, state.sessions);
+      render();
+    }
+  }
   if (action === 'clear-cache') {
     const first = state.settings.language === 'ru'
       ? 'Сбросить кэш приложения? Записи сна и сейвы останутся.'
@@ -1114,6 +1169,11 @@ function updatePlanJumpButton() {
 }
 
 window.addEventListener('scroll', updatePlanJumpButton, { passive: true });
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  state.installPrompt = event;
+});
 
 setInterval(() => {
   state.tick = Date.now();

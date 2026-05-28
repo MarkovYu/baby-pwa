@@ -181,6 +181,7 @@ button {
   height: 18px;
   display: block;
   color: currentColor;
+  object-fit: contain;
 }
 
 .icon-dot .svg-icon {
@@ -396,7 +397,7 @@ button {
 .timeline {
   display: grid;
   grid-template-columns: 58px 1fr 1fr;
-  min-height: 1220px;
+  min-height: 1640px;
   position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -440,7 +441,7 @@ button {
   text-align: left;
   color: var(--ink);
   border-radius: 16px;
-  padding: 8px;
+  padding: 10px 8px;
   overflow: hidden;
   border: 1px solid var(--line);
   font-size: 12px;
@@ -537,6 +538,7 @@ button.actual-block {
 .bar {
   width: 34px;
   min-height: 8px;
+  max-height: 144px;
   border-radius: 12px;
   background: var(--primary);
 }
@@ -892,6 +894,11 @@ button.actual-block {
   font-size: 17px;
   font-weight: 950;
   margin-top: 12px;
+}
+
+.primary.compact {
+  min-height: 50px;
+  margin-top: 0;
 }
 
 .primary {
