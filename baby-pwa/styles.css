@@ -85,14 +85,14 @@ button {
   border: 1px solid var(--line);
   border-radius: 22px;
   box-shadow: 0 14px 34px rgba(75, 63, 132, .1);
-  padding: 12px;
-  margin: 0 0 9px;
+  padding: 11px;
+  margin: 0 0 8px;
 }
 
 .schedule-card {
-  min-height: 82px;
+  min-height: 72px;
   display: grid;
-  gap: 7px;
+  gap: 5px;
 }
 
 .schedule-card.current {
@@ -126,9 +126,10 @@ button {
 
 .title-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
+  min-height: 34px;
 }
 
 .icon-dot {
@@ -144,17 +145,54 @@ button {
 
 .block-title {
   font-size: 20px;
-  line-height: 1.08;
+  line-height: 1;
   font-weight: 950;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  align-self: center;
 }
 
 .block-time {
   font-size: 16px;
-  line-height: 1.1;
+  line-height: 1;
   font-weight: 900;
   color: var(--ink);
   white-space: nowrap;
+  align-self: center;
+}
+
+.next-card .icon-dot {
+  width: 28px;
+  height: 28px;
+  opacity: .72;
+}
+
+.next-card .block-title,
+.next-card .block-time {
+  font-size: 18px;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.svg-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  color: currentColor;
+}
+
+.icon-dot .svg-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.inline-img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 
 .muted {
@@ -163,10 +201,11 @@ button {
 }
 
 .sleep-state {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+  min-height: 72px;
 }
 
 .sleep-state strong {
@@ -174,6 +213,18 @@ button {
   font-size: 20px;
   line-height: 1.05;
   margin-bottom: 6px;
+}
+
+.sleep-state > strong:last-child {
+  text-align: right;
+  margin: 0;
+}
+
+.sleep-state .muted {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .noise-card {
@@ -194,7 +245,7 @@ button {
   border: 2px solid var(--primary);
   color: var(--ink);
   background: var(--primary-soft);
-  padding: 0 44px 0 16px;
+  padding: 0 44px 0 52px;
   font-size: 16px;
   font-weight: 900;
   appearance: none;
@@ -202,15 +253,31 @@ button {
 
 .select-wrap::after {
   content: "";
-  width: 12px;
-  height: 12px;
-  border-right: 3px solid var(--primary);
-  border-bottom: 3px solid var(--primary);
-  transform: rotate(45deg);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid var(--primary);
   position: absolute;
   right: 20px;
-  top: 20px;
+  top: 50%;
+  margin-top: -4px;
   pointer-events: none;
+}
+
+.select-icon {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
+  color: var(--primary);
+}
+
+.select-icon .svg-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .play {
@@ -225,7 +292,8 @@ button {
   transition: transform .16s ease;
 }
 
-.play:active, .fab:active, .primary:active, .tab:active { transform: scale(.94); }
+.play:active, .primary:active, .tab:active { transform: scale(.94); }
+.fab:active { transform: translateX(-50%) scale(.96); }
 
 .summary .big {
   font-size: 22px;
@@ -253,10 +321,10 @@ button {
 .fab {
   position: fixed;
   left: 50%;
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: calc(62px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: 112px;
-  height: 112px;
+  width: 98px;
+  height: 98px;
   border-radius: 50%;
   background: linear-gradient(180deg, #9e98ff, #746ce8);
   color: white;
@@ -265,7 +333,7 @@ button {
   place-items: center;
   z-index: 10;
   text-align: center;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 950;
 }
 
@@ -316,6 +384,7 @@ button {
 }
 
 .tab svg { width: 22px; height: 22px; }
+.tab .svg-icon { width: 22px; height: 22px; }
 
 .screen-title {
   font-size: 30px;
@@ -380,6 +449,10 @@ button {
   z-index: 2;
 }
 
+button.actual-block {
+  cursor: pointer;
+}
+
 .actual-tap-zone {
   position: absolute;
   top: 44px;
@@ -410,6 +483,9 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .week {
@@ -450,6 +526,12 @@ button {
   color: var(--muted);
   font-weight: 900;
   font-size: 12px;
+  min-width: 0;
+}
+
+.bar-wrap strong {
+  width: 100%;
+  text-align: center;
 }
 
 .bar {
@@ -549,6 +631,17 @@ button {
   padding: 6px;
 }
 
+.theme-line .segmented {
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  border-radius: 999px;
+  padding: 5px;
+}
+
+.theme-line .segmented button {
+  border-radius: 999px;
+}
+
 .segmented button {
   border-radius: 15px;
   min-height: 42px;
@@ -579,6 +672,22 @@ button {
   background: var(--primary-soft);
   color: var(--primary);
   font-weight: 950;
+}
+
+.danger-card {
+  border-color: #f0b0b0;
+}
+
+.danger, button.danger {
+  min-height: 50px;
+  border-radius: 18px;
+  background: #d9534f !important;
+  color: white;
+  font-weight: 950;
+  display: grid;
+  place-items: center;
+  padding: 0 16px;
+  font-size: 16px;
 }
 
 .stepper strong {

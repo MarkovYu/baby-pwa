@@ -484,12 +484,14 @@ function overlapPercent(schedule, sessions, dayStart) {
 }
 
 function icon(type) {
-  const name = type === 'sleep' ? 'sleep' : type === 'feed' ? 'bottle' : type === 'active' ? 'toys' : 'sleep';
-  return `<img class="svg-icon" src="./icons/${name}.svg" alt="" />`;
+  if (type === 'sleep') return sleepMiniSvg();
+  if (type === 'feed') return bottleSvg();
+  if (type === 'active') return toysSvg();
+  return calmSvg();
 }
 
 function blockIcon(block) {
-  if (block.labelKey === 'walk') return `<img class="svg-icon" src="./icons/stroller.svg" alt="" />`;
+  if (block.labelKey === 'walk') return strollerSvg();
   return icon(block.type);
 }
 
@@ -611,7 +613,7 @@ function nowScreen() {
     </section>
     <section class="card noise-card">
       <div class="select-wrap">
-        <img class="select-icon" src="./icons/sound.svg" alt="" />
+        <span class="select-icon">${soundSvg()}</span>
         <select data-action="sound-select">
           <option value="white" ${state.settings.sound === 'white' ? 'selected' : ''}>${t('whiteNoise')}</option>
           <option value="birds" ${state.settings.sound === 'birds' ? 'selected' : ''}>${t('birds')}</option>
@@ -867,11 +869,19 @@ function sleepSvg(size = 24) {
 }
 function playSvg() { return `<svg width="28" height="28" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>`; }
 function pauseSvg() { return `<svg width="28" height="28" viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor"/></svg>`; }
-function assetIcon(name) { return `<img class="nav-img" src="./icons/${name}.svg" alt="" />`; }
-function bulbSvg() { return `<img class="inline-img" src="./icons/bulb.svg" alt="" />`; }
-function planSvg() { return assetIcon('plan'); }
-function barsSvg() { return assetIcon('graphs'); }
-function settingsSvg() { return assetIcon('settings'); }
+function miniSvg(content, viewBox = '0 0 24 24') {
+  return `<svg class="svg-icon" viewBox="${viewBox}" fill="none" aria-hidden="true">${content}</svg>`;
+}
+function sleepMiniSvg() { return miniSvg(`<path d="M19.8 14.1c-1.1 4-4.8 6.9-9.1 6.9A9.7 9.7 0 0 1 8.2 2c.7-.2 1.1.6.7 1.1A7 7 0 0 0 14.2 14c1.7 0 3.2-.6 4.4-1.6.6-.5 1.4.2 1.2 1.7Z" fill="currentColor"/>`); }
+function calmSvg() { return miniSvg(`<path d="M4 13c2.2-2.2 4.4-2.2 6.6 0s4.4 2.2 6.6 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M4 8c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
+function bottleSvg() { return miniSvg(`<path d="M10 3h4v3l-1 1v2.2l4 4V20a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6.8l4-4V7l-1-1V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15h6M9 18h6M10 6h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
+function toysSvg() { return miniSvg(`<path d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6v3H6v-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 19c2.6 1.5 5.4 1.5 8 0M9 10h.1M15 10h.1M10 13c1.2 1 2.8 1 4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
+function strollerSvg() { return miniSvg(`<path d="M8 6h8a5 5 0 0 1-5 5H7a5 5 0 0 1 5-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 11h10l-2 5H9l-2-5ZM8 20h.1M16 20h.1M4 6c0-2 1-3 3-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
+function soundSvg() { return miniSvg(`<path d="M4 10v4h3l4 4V6l-4 4H4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 9c.8.8 1.2 1.8 1.2 3S15.8 14.2 15 15M18 7c1.4 1.4 2 3 2 5s-.6 3.6-2 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
+function bulbSvg() { return miniSvg(`<path d="M9 21h6M10 17h4M8 14c-1.2-1-2-2.5-2-4a6 6 0 1 1 12 0c0 1.5-.8 3-2 4-.8.7-1 1.3-1 2H9c0-.7-.2-1.3-1-2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
+function planSvg() { return miniSvg(`<path d="M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 12h8M8 16h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
+function barsSvg() { return miniSvg(`<path d="M5 20V10M12 20V5M19 20v-7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>`); }
+function settingsSvg() { return miniSvg(`<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/><path d="M19 13.5v-3l-2-.4a7.5 7.5 0 0 0-.7-1.6l1.1-1.7-2.2-2.2-1.7 1.1a7.5 7.5 0 0 0-1.6-.7L11.5 3h-3l-.4 2a7.5 7.5 0 0 0-1.6.7L4.8 4.6 2.6 6.8l1.1 1.7a7.5 7.5 0 0 0-.7 1.6l-2 .4v3l2 .4c.2.6.4 1.1.7 1.6l-1.1 1.7 2.2 2.2 1.7-1.1c.5.3 1 .5 1.6.7l.4 2h3l.4-2c.6-.2 1.1-.4 1.6-.7l1.7 1.1 2.2-2.2-1.1-1.7c.3-.5.5-1 .7-1.6l2-.4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>`); }
 function chevronSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 
 document.addEventListener('click', async (event) => {

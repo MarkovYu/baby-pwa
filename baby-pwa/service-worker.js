@@ -1,4 +1,4 @@
-const CACHE = 'baby-rhythm-pwa-v3';
+const CACHE = 'baby-rhythm-pwa-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,15 @@ const ASSETS = [
   './app.js',
   './manifest.webmanifest',
   './icons/icon.svg',
+  './icons/sleep.svg',
+  './icons/bottle.svg',
+  './icons/toys.svg',
+  './icons/stroller.svg',
+  './icons/sound.svg',
+  './icons/bulb.svg',
+  './icons/plan.svg',
+  './icons/graphs.svg',
+  './icons/settings.svg',
   './assets/white-noise.wav',
   './assets/rain-loop.wav',
   './assets/bird-sounds.wav'
