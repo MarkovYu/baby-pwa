@@ -318,6 +318,13 @@ function duration(ms) {
   return h ? `${h} h ${m} min` : `${m} min`;
 }
 
+function timeUntilLabel(ms) {
+  const value = duration(ms);
+  if (state.settings.language === 'ru') return `Через ${value}`;
+  if (state.settings.language === 'de') return `In ${value}`;
+  return `In ${value}`;
+}
+
 function nowMinute(date = new Date()) {
   let minute = date.getHours() * 60 + date.getMinutes();
   const start = state.settings.wakeHour * 60;
@@ -422,9 +429,34 @@ function activeSessions(offset = 0) {
     ...s,
     start: Math.max(s.start, start),
     end: Math.min(s.end, end),
+    sourceIds: [s.id],
   }));
-  if (state.sleepStart && offset === 0) list.push({ id: 'active', start: state.sleepStart, end: Date.now(), active: true });
-  return list;
+  if (state.sleepStart && offset === 0) list.push({ id: 'active', start: state.sleepStart, end: Date.now(), active: true, sourceIds: ['active'] });
+  return mergeSessionSegments(list);
+}
+
+function mergeSessionSegments(items) {
+  const sorted = [...items].filter((s) => s.end > s.start).sort((a, b) => a.start - b.start);
+  const merged = [];
+  for (const item of sorted) {
+    const last = merged[merged.length - 1];
+    if (last && item.start <= last.end) {
+      last.end = Math.max(last.end, item.end);
+      last.active = last.active || item.active;
+      last.sourceIds = [...new Set([...(last.sourceIds || [last.id]), ...(item.sourceIds || [item.id])])];
+    } else {
+      merged.push({ ...item, sourceIds: item.sourceIds || [item.id] });
+    }
+  }
+  return merged;
+}
+
+function mergePersistedSessions(items) {
+  return mergeSessionSegments(items).map((s) => ({
+    id: s.id || `sleep-${s.start}`,
+    start: s.start,
+    end: s.end,
+  }));
 }
 
 function plannedSleepUntil(schedule, minute) {
@@ -452,10 +484,13 @@ function overlapPercent(schedule, sessions, dayStart) {
 }
 
 function icon(type) {
-  if (type === 'sleep') return '☾';
-  if (type === 'feed') return '🍼';
-  if (type === 'active') return '✦';
-  return '≈';
+  const name = type === 'sleep' ? 'sleep' : type === 'feed' ? 'bottle' : type === 'active' ? 'toys' : 'sleep';
+  return `<img class="svg-icon" src="./icons/${name}.svg" alt="" />`;
+}
+
+function blockIcon(block) {
+  if (block.labelKey === 'walk') return `<img class="svg-icon" src="./icons/stroller.svg" alt="" />`;
+  return icon(block.type);
 }
 
 function render() {
@@ -562,7 +597,7 @@ function nowScreen() {
       <div class="clock">${pad(time.getHours())}:${pad(time.getMinutes())}</div>
     </div>
     ${scheduleCard(current, t('now'), true)}
-    ${scheduleCard(next, `${t('next')} ${duration(Math.max(0, next.start - minute) * 60000)}`, false)}
+    ${scheduleCard(next, timeUntilLabel(Math.max(0, next.start - minute) * 60000), false)}
     <section class="card sleep-state">
       <div>
         <strong>${t('currentSleep')}</strong>
@@ -576,6 +611,7 @@ function nowScreen() {
     </section>
     <section class="card noise-card">
       <div class="select-wrap">
+        <img class="select-icon" src="./icons/sound.svg" alt="" />
         <select data-action="sound-select">
           <option value="white" ${state.settings.sound === 'white' ? 'selected' : ''}>${t('whiteNoise')}</option>
           <option value="birds" ${state.settings.sound === 'birds' ? 'selected' : ''}>${t('birds')}</option>
@@ -595,10 +631,10 @@ function nowScreen() {
 
 function scheduleCard(block, label, featured) {
   return `
-    <section class="card schedule-card ${featured ? 'current' : ''} ${block.type}">
+    <section class="card schedule-card ${featured ? 'current' : 'next-card'} ${block.type}">
       <div class="kicker">${label}</div>
       <div class="title-row">
-        <div class="icon-dot">${icon(block.type)}</div>
+        <div class="icon-dot">${blockIcon(block)}</div>
         <div class="block-title">${titleFor(block)}</div>
         <div class="block-time">${clock(block.start)}–${clock(block.end)}</div>
       </div>
@@ -618,20 +654,21 @@ function planScreen() {
   const blocks = schedule.map((b) => {
     const top = 44 + (b.start - state.settings.wakeHour * 60) * PLAN_PX;
     const height = Math.max(32, (b.end - b.start) * PLAN_PX);
-    return `<button class="plan-block ${b.type}" data-edit-plan="${b.id}" style="top:${top}px;height:${height}px"><div class="block-small">${icon(b.type)} ${titleFor(b)}</div><div>${clock(b.start)}–${clock(b.end)}</div></button>`;
+    return `<button class="plan-block ${b.type}" data-edit-plan="${b.id}" style="top:${top}px;height:${height}px"><div class="block-small">${blockIcon(b)} ${titleFor(b)}</div><div>${clock(b.start)}–${clock(b.end)}</div></button>`;
   }).join('');
   const actual = sessions.map((s) => {
     const sm = (s.start - start) / 60000 + state.settings.wakeHour * 60;
     const em = (s.end - start) / 60000 + state.settings.wakeHour * 60;
     const top = 44 + (sm - state.settings.wakeHour * 60) * PLAN_PX;
     const height = Math.max(30, (em - sm) * PLAN_PX);
-    return `<div class="actual-block" style="top:${top}px;height:${height}px"><div class="block-small">☾ ${t('sleep')}</div><div>${clock(sm)}–${s.active ? t('now') : clock(em)}</div><div>${duration(s.end - s.start)}</div></div>`;
+    return `<button class="actual-block" ${s.active ? '' : `data-edit-sleep="${(s.sourceIds || [s.id]).join(',')}"`} style="top:${top}px;height:${height}px"><div class="block-small">${icon('sleep')} ${t('sleep')}</div><div>${clock(sm)}–${s.active ? t('now') : clock(em)}</div><div>${duration(s.end - s.start)}</div></button>`;
   }).join('');
+  const timelineHeight = 44 + DAY * PLAN_PX;
   return `
     <div class="kicker">${t('plan')}</div>
     <h1 class="screen-title">${t('plan')}</h1>
     <div class="week">${weekChips()}</div>
-    <section class="timeline">
+    <section class="timeline" style="height:${timelineHeight}px">
       <div class="col-head plan-head">${t('plan')}</div>
       <div class="col-head actual-head">${t('actual')}</div>
       <button class="actual-tap-zone" data-add-sleep-zone aria-label="${t('addSleep')}"></button>
@@ -724,9 +761,14 @@ function settingsScreen() {
     </section>
     <section class="card settings-grid">
       <h2>${t('theme')}</h2>
-      ${segments('theme', [['day', t('day')], ['night', t('night')]])}
+      <div class="theme-line">${segments('theme', [['day', t('day')], ['night', t('night')]])}</div>
       <h2>${t('language')}</h2>
       ${segments('language', [['en', '🇬🇧'], ['de', '🇩🇪'], ['ru', '🇷🇺']])}
+    </section>
+    <section class="card settings-grid danger-card">
+      <h2>${state.settings.language === 'ru' ? 'Кэш сайта' : state.settings.language === 'de' ? 'Website-Cache' : 'Site cache'}</h2>
+      <div class="muted">${state.settings.language === 'ru' ? 'Обновляет файлы приложения. Записи сна и сейвы не удаляются.' : state.settings.language === 'de' ? 'Aktualisiert App-Dateien. Schlafdaten und Saves bleiben.' : 'Refreshes app files. Sleep logs and saves stay.'}</div>
+      <button class="danger" data-action="clear-cache">${state.settings.language === 'ru' ? 'Сбросить кэш' : state.settings.language === 'de' ? 'Cache leeren' : 'Reset cache'}</button>
     </section>
   `;
 }
@@ -825,10 +867,11 @@ function sleepSvg(size = 24) {
 }
 function playSvg() { return `<svg width="28" height="28" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>`; }
 function pauseSvg() { return `<svg width="28" height="28" viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor"/></svg>`; }
-function bulbSvg() { return `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9 21h6M10 17h4M8 14c-1.2-1-2-2.5-2-4a6 6 0 1 1 12 0c0 1.5-.8 3-2 4-.8.7-1 1.3-1 2H9c0-.7-.2-1.3-1-2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`; }
-function planSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`; }
-function barsSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M5 20V9M12 20V4M19 20v-7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`; }
-function settingsSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/><path d="M19 13.5v-3l-2-.4c-.2-.6-.4-1.1-.7-1.6l1.1-1.7-2.2-2.2-1.7 1.1c-.5-.3-1-.5-1.6-.7L11.5 3h-3l-.4 2c-.6.2-1.1.4-1.6.7L4.8 4.6 2.6 6.8l1.1 1.7c-.3.5-.5 1-.7 1.6l-2 .4v3l2 .4c.2.6.4 1.1.7 1.6l-1.1 1.7 2.2 2.2 1.7-1.1c.5.3 1 .5 1.6.7l.4 2h3l.4-2c.6-.2 1.1-.4 1.6-.7l1.7 1.1 2.2-2.2-1.1-1.7c.3-.5.5-1 .7-1.6l2-.4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`; }
+function assetIcon(name) { return `<img class="nav-img" src="./icons/${name}.svg" alt="" />`; }
+function bulbSvg() { return `<img class="inline-img" src="./icons/bulb.svg" alt="" />`; }
+function planSvg() { return assetIcon('plan'); }
+function barsSvg() { return assetIcon('graphs'); }
+function settingsSvg() { return assetIcon('settings'); }
 function chevronSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 
 document.addEventListener('click', async (event) => {
@@ -875,6 +918,7 @@ document.addEventListener('click', async (event) => {
     if (state.sleepStart) {
       const end = Date.now();
       state.sessions.push({ id: `sleep-${end}`, start: state.sleepStart, end });
+      state.sessions = mergePersistedSessions(state.sessions);
       state.sleepStart = 0;
       localStorage.removeItem(LS.sleepStart);
       save(LS.sessions, state.sessions);
@@ -885,6 +929,29 @@ document.addEventListener('click', async (event) => {
     render();
   }
   if (action === 'toggle-noise') await toggleNoise();
+  if (action === 'clear-cache') {
+    const first = state.settings.language === 'ru'
+      ? 'Сбросить кэш приложения? Записи сна и сейвы останутся.'
+      : state.settings.language === 'de'
+        ? 'App-Cache leeren? Schlafdaten und Saves bleiben.'
+        : 'Reset the app cache? Sleep logs and saves will stay.';
+    const second = state.settings.language === 'ru'
+      ? 'Подтвердите ещё раз: вы понимаете, что страница перезагрузится.'
+      : state.settings.language === 'de'
+        ? 'Bitte noch einmal bestätigen: Die Seite wird neu geladen.'
+        : 'Confirm again: you understand the page will reload.';
+    if (window.confirm(first) && window.confirm(second)) {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((reg) => reg.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+      location.reload();
+    }
+  }
   if (action === 'plan-jump') {
     if (window.scrollY < 120) {
       const minute = nowMinute();
@@ -932,6 +999,18 @@ document.addEventListener('click', async (event) => {
       render();
     }
   }
+  if (target.dataset.editSleep) {
+    const ids = target.dataset.editSleep.split(',').filter(Boolean);
+    const items = state.sessions.filter((item) => ids.includes(item.id));
+    const merged = mergeSessionSegments(items)[0];
+    if (merged) {
+      const base = dayStartDate().getTime();
+      const start = Math.round(((merged.start - base) / 60000 + state.settings.wakeHour * 60) / 5) * 5;
+      const end = Math.round(((merged.end - base) / 60000 + state.settings.wakeHour * 60) / 5) * 5;
+      state.editor = { mode: 'sleep', sourceIds: ids, start, end };
+      render();
+    }
+  }
   if (target.dataset.addSleepZone !== undefined) {
     const rect = target.getBoundingClientRect();
     const raw = state.settings.wakeHour * 60 + Math.max(0, event.clientY - rect.top - 44) / PLAN_PX;
@@ -969,11 +1048,15 @@ document.addEventListener('submit', (event) => {
   if (state.editor.mode === 'sleep') {
     const base = dayStartDate().getTime();
     const item = {
-      id: `sleep-${Date.now()}`,
+      id: state.editor.sourceIds?.[0] || `sleep-${Date.now()}`,
       start: base + (start - state.settings.wakeHour * 60) * 60000,
       end: base + (end - state.settings.wakeHour * 60) * 60000,
     };
+    if (state.editor.sourceIds?.length) {
+      state.sessions = state.sessions.filter((s) => !state.editor.sourceIds.includes(s.id));
+    }
     state.sessions.push(item);
+    state.sessions = mergePersistedSessions(state.sessions);
     save(LS.sessions, state.sessions);
     state.editor = null;
     render();
