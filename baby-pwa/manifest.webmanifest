@@ -1,0 +1,18 @@
+{
+  "name": "Baby rhythm",
+  "short_name": "Baby rhythm",
+  "description": "A calm local baby sleep routine planner.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F7F5FF",
+  "theme_color": "#746CE8",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
