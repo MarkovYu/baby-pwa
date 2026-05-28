@@ -6,6 +6,7 @@ const LS = {
   sleepStart: 'baby-pwa-active-sleep-v1',
   onboarding: 'baby-pwa-onboarding-completed-v1',
   saves: 'baby-pwa-routine-saves-v1',
+  customSchedule: 'baby-pwa-custom-schedule-v1',
 };
 
 const labels = {
@@ -70,6 +71,13 @@ const labels = {
     planned: 'По плану',
     savedToast: 'Распорядок сохранён',
     loadedToast: 'Распорядок загружен',
+    editBlock: 'Изменить блок',
+    title: 'Название',
+    type: 'Тип',
+    start: 'Начало',
+    end: 'Конец',
+    cancel: 'Отмена',
+    saveChanges: 'Сохранить',
   },
   en: {
     now: 'Now',
@@ -132,6 +140,13 @@ const labels = {
     planned: 'Planned',
     savedToast: 'Routine saved',
     loadedToast: 'Routine loaded',
+    editBlock: 'Edit block',
+    title: 'Title',
+    type: 'Type',
+    start: 'Start',
+    end: 'End',
+    cancel: 'Cancel',
+    saveChanges: 'Save',
   },
   de: {
     now: 'Jetzt',
@@ -194,6 +209,13 @@ const labels = {
     planned: 'Geplant',
     savedToast: 'Routine gespeichert',
     loadedToast: 'Routine geladen',
+    editBlock: 'Block bearbeiten',
+    title: 'Titel',
+    type: 'Typ',
+    start: 'Start',
+    end: 'Ende',
+    cancel: 'Abbrechen',
+    saveChanges: 'Sichern',
   }
 };
 
@@ -229,8 +251,10 @@ const state = {
   tab: 'now',
   settings: load(LS.settings, defaultSettings),
   sessions: load(LS.sessions, []),
+  customSchedule: load(LS.customSchedule, null),
   sleepStart: Number(localStorage.getItem(LS.sleepStart) || 0),
   saves: load(LS.saves, [null, null, null]),
+  editor: null,
   onboardingStep: 0,
   draftAge: 5,
   draftWake: 7,
@@ -344,6 +368,7 @@ const fixedSchedule = [
 });
 
 function generateSchedule() {
+  if (state.settings.scheduleMode === 'custom' && Array.isArray(state.customSchedule) && state.customSchedule.length) return state.customSchedule;
   if (state.settings.scheduleMode === 'fixed') return fixedSchedule;
   const p = presetFor(state.settings.ageMonths);
   const wake = state.settings.wakeHour * 60;
@@ -507,6 +532,7 @@ function renderApp() {
     </main>
     ${state.tab === 'now' ? sleepButton() : ''}
     ${nav()}
+    ${state.editor ? editorModal() : ''}
   `;
 }
 
@@ -582,7 +608,7 @@ function planScreen() {
   const blocks = schedule.map((b) => {
     const top = 44 + (b.start - state.settings.wakeHour * 60) * PLAN_PX;
     const height = Math.max(32, (b.end - b.start) * PLAN_PX);
-    return `<div class="plan-block ${b.type}" style="top:${top}px;height:${height}px"><div class="block-small">${icon(b.type)} ${titleFor(b)}</div><div>${clock(b.start)}–${clock(b.end)}</div></div>`;
+    return `<button class="plan-block ${b.type}" data-edit-plan="${b.id}" style="top:${top}px;height:${height}px"><div class="block-small">${icon(b.type)} ${titleFor(b)}</div><div>${clock(b.start)}–${clock(b.end)}</div></button>`;
   }).join('');
   const actual = sessions.map((s) => {
     const sm = (s.start - start) / 60000 + state.settings.wakeHour * 60;
@@ -693,6 +719,33 @@ function settingsScreen() {
   `;
 }
 
+function editorModal() {
+  const e = state.editor;
+  return `
+    <div class="modal-backdrop" data-action="close-editor">
+      <form class="modal-card" data-editor-form>
+        <h2>${t('editBlock')}</h2>
+        <label>${t('title')}<input name="title" value="${escapeHtml(e.title)}" /></label>
+        <label>${t('type')}<select name="type">
+          ${['sleep', 'feed', 'active', 'calm'].map((type) => `<option value="${type}" ${e.type === type ? 'selected' : ''}>${type}</option>`).join('')}
+        </select></label>
+        <div class="modal-grid">
+          <label>${t('start')}<input name="start" type="time" value="${clock(e.start)}" /></label>
+          <label>${t('end')}<input name="end" type="time" value="${clock(e.end)}" /></label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="secondary" data-action="close-editor">${t('cancel')}</button>
+          <button type="submit" class="primary">${t('saveChanges')}</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+
 function segments(key, options) {
   return `<div class="segmented ${options.length === 2 ? 'two' : ''}">${options.map(([value, label]) => `<button class="${state.settings[key] === value ? 'active' : ''}" data-setting="${key}" data-value="${value}">${label}</button>`).join('')}</div>`;
 }
@@ -796,6 +849,8 @@ document.addEventListener('click', async (event) => {
   if (action === 'wake-minus') { state.draftWake = (state.draftWake + 23) % 24; render(); }
   if (action === 'wake-plus') { state.draftWake = (state.draftWake + 1) % 24; render(); }
   if (action === 'toggle-sleep') {
+    document.body.classList.add('sleep-pop');
+    setTimeout(() => document.body.classList.remove('sleep-pop'), 360);
     if (state.sleepStart) {
       const end = Date.now();
       state.sessions.push({ id: `sleep-${end}`, start: state.sleepStart, end });
@@ -834,9 +889,20 @@ document.addEventListener('click', async (event) => {
     localStorage.removeItem(LS.onboarding);
     render();
   }
+  if (action === 'close-editor') {
+    state.editor = null;
+    render();
+  }
+  if (target.dataset.editPlan) {
+    const block = generateSchedule().find((item) => item.id === target.dataset.editPlan);
+    if (block) {
+      state.editor = { ...block, title: titleFor(block) };
+      render();
+    }
+  }
   if (target.dataset.saveSlot) {
     const i = Number(target.dataset.saveSlot);
-    state.saves[i] = { savedAt: Date.now(), settings: { ...state.settings }, scheduleMode: state.settings.scheduleMode };
+    state.saves[i] = { savedAt: Date.now(), settings: { ...state.settings }, schedule: generateSchedule() };
     save(LS.saves, state.saves);
     toast(t('savedToast'));
     render();
@@ -844,12 +910,37 @@ document.addEventListener('click', async (event) => {
   if (target.dataset.loadSlot) {
     const i = Number(target.dataset.loadSlot);
     if (state.saves[i]) {
-      state.settings = { ...state.settings, ...state.saves[i].settings, scheduleMode: state.saves[i].scheduleMode || state.saves[i].settings.scheduleMode };
+      state.settings = { ...state.settings, ...state.saves[i].settings, scheduleMode: 'custom' };
+      state.customSchedule = state.saves[i].schedule || null;
       save(LS.settings, state.settings);
+      save(LS.customSchedule, state.customSchedule);
       toast(t('loadedToast'));
       render();
     }
   }
+});
+
+document.addEventListener('submit', (event) => {
+  const form = event.target.closest('[data-editor-form]');
+  if (!form || !state.editor) return;
+  event.preventDefault();
+  const data = new FormData(form);
+  const start = toMinute(data.get('start'));
+  const end = normalizeEnd(toMinute(data.get('end')), start);
+  const schedule = generateSchedule().map((item) => item.id === state.editor.id ? {
+    ...item,
+    title: String(data.get('title') || item.title),
+    labelKey: null,
+    type: String(data.get('type') || item.type),
+    start,
+    end,
+  } : item).sort((a, b) => a.start - b.start);
+  state.customSchedule = schedule;
+  state.settings.scheduleMode = 'custom';
+  save(LS.customSchedule, state.customSchedule);
+  save(LS.settings, state.settings);
+  state.editor = null;
+  render();
 });
 
 document.addEventListener('change', (event) => {
