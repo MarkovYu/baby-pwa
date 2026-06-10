@@ -247,6 +247,17 @@ const blockLabels = {
   extra_sleep: { ru: 'Досып', en: 'Extra sleep', de: 'Weiterschlafen' },
 };
 
+Object.assign(blockLabels, {
+  nap_3: { ru: 'Сон 3', en: 'Nap 3', de: 'Schlaf 3' },
+  nap_5: { ru: 'Сон 5', en: 'Nap 5', de: 'Schlaf 5' },
+  milk: { ru: 'Молоко', en: 'Milk', de: 'Milch' },
+  breakfast: { ru: 'Завтрак', en: 'Breakfast', de: 'Frühstück' },
+  lunch: { ru: 'Обед', en: 'Lunch', de: 'Mittagessen' },
+  dinner: { ru: 'Ужин', en: 'Dinner', de: 'Abendessen' },
+  snack: { ru: 'Перекус', en: 'Snack', de: 'Snack' },
+  bedtime_routine: { ru: 'Ритуал сна', en: 'Bedtime routine', de: 'Abendroutine' },
+});
+
 const defaultSettings = {
   language: 'ru',
   theme: 'day',
@@ -391,6 +402,128 @@ function generateCsvSchedule() {
       source: 'csv',
     };
   }).sort((a, b) => a.start - b.start);
+}
+
+function csvText(row) {
+  return `${row.event_type || ''} ${row.event_name || ''}`.toLowerCase();
+}
+
+function hasAny(text, words) {
+  return words.some((word) => text.includes(word));
+}
+
+function nicePart(total, preferred, minRemainder = 15) {
+  if (total <= preferred + minRemainder) return total;
+  return Math.min(preferred, total - minRemainder);
+}
+
+function csvSleepLabel(row, fallbackIndex) {
+  const text = csvText(row);
+  if (hasAny(text, ['ноч', 'night'])) return 'night_sleep';
+  if (hasAny(text, ['глав', 'основ', 'дневной'])) return 'main_nap';
+  const match = text.match(/сон\s*(\d+)/);
+  if (match) {
+    const number = Math.max(1, Math.min(5, Number(match[1])));
+    return number === 1 ? 'nap_1' : number === 2 ? 'nap_2' : number === 3 ? 'nap_3' : number === 4 ? 'nap_4' : 'nap_5';
+  }
+  return fallbackIndex === 1 ? 'nap_1' : fallbackIndex === 2 ? 'nap_2' : fallbackIndex === 3 ? 'nap_3' : fallbackIndex === 4 ? 'nap_4' : 'main_nap';
+}
+
+function csvMealLabel(text) {
+  if (hasAny(text, ['завтрак'])) return 'breakfast';
+  if (hasAny(text, ['обед'])) return 'lunch';
+  if (hasAny(text, ['ужин'])) return 'dinner';
+  if (hasAny(text, ['перекус'])) return 'snack';
+  if (hasAny(text, ['молоко'])) return 'milk';
+  if (hasAny(text, ['корм', 'еда'])) return 'top_up';
+  return null;
+}
+
+function csvActivityLabel(text) {
+  if (hasAny(text, ['прогул', 'улица'])) return 'walk';
+  if (hasAny(text, ['ритуал', 'уклады', 'книга', 'ванна', 'песня', 'гигиена', 'подготов'])) return 'bedtime_routine';
+  if (hasAny(text, ['тих', 'спокой', 'тёмн', 'темн', 'переход'])) return 'quiet_play';
+  if (hasAny(text, ['коврик', 'контакт', 'tummy'])) return 'play_tummy';
+  return 'play';
+}
+
+function typeForLabel(labelKey) {
+  if (['nap_1', 'nap_2', 'nap_3', 'nap_4', 'nap_5', 'main_nap', 'night_sleep', 'extra_sleep'].includes(labelKey)) return 'sleep';
+  if (['feeding_diaper', 'top_up', 'milk', 'breakfast', 'lunch', 'dinner', 'snack', 'dream_feed'].includes(labelKey)) return 'feed';
+  if (['wind_down', 'quiet_play', 'settling', 'bedtime_routine'].includes(labelKey)) return 'calm';
+  return 'active';
+}
+
+function makeCsvBlock(row, part, start, end, labelKey) {
+  return {
+    id: `csv-${row.month}-${row.event_order}-${part}`,
+    start,
+    end,
+    title: null,
+    labelKey,
+    type: typeForLabel(labelKey),
+    rawEventType: row.event_type,
+    source: 'csv',
+  };
+}
+
+function splitCsvRow(row, start, end, napIndex) {
+  const text = csvText(row);
+  const total = end - start;
+  if (total < 10) return [];
+  if (hasAny(text, ['сон', 'ноч'])) {
+    return [makeCsvBlock(row, 0, start, end, csvSleepLabel(row, napIndex))];
+  }
+
+  const meal = csvMealLabel(text);
+  const activity = csvActivityLabel(text);
+  const hasActivity = hasAny(text, ['игр', 'актив', 'коврик', 'контакт', 'прогул', 'улица', 'спокой', 'тих', 'ритуал', 'уклады', 'книга', 'ванна', 'песня', 'гигиена', 'подготов']);
+
+  if (meal && hasActivity && total >= 45) {
+    const mealMinutes = nicePart(total, hasAny(text, ['завтрак', 'обед', 'ужин']) ? 45 : 30);
+    const middle = start + mealMinutes;
+    return [
+      makeCsvBlock(row, 0, start, middle, meal),
+      makeCsvBlock(row, 1, middle, end, activity),
+    ];
+  }
+
+  if (meal) return [makeCsvBlock(row, 0, start, end, meal)];
+  return [makeCsvBlock(row, 0, start, end, activity)];
+}
+
+function normalizeCsvNapLabels(blocks) {
+  const naps = blocks.filter((block) => block.type === 'sleep' && block.labelKey !== 'night_sleep');
+  if (!naps.length) return blocks;
+  const dayMiddle = state.settings.wakeHour * 60 + 6.5 * 60;
+  const longest = naps.reduce((best, block) => {
+    const blockDuration = block.end - block.start;
+    const bestDuration = best.end - best.start;
+    if (blockDuration !== bestDuration) return blockDuration > bestDuration ? block : best;
+    const blockDistance = Math.abs((block.start + block.end) / 2 - dayMiddle);
+    const bestDistance = Math.abs((best.start + best.end) / 2 - dayMiddle);
+    return blockDistance < bestDistance ? block : best;
+  }, naps[0]);
+  if (naps.length === 1 || longest.end - longest.start >= 90) {
+    longest.labelKey = 'main_nap';
+  }
+  return blocks;
+}
+
+function generateCsvSchedule() {
+  const rows = csvRowsForAge(state.settings.ageMonths);
+  if (!rows.length) return null;
+  const shift = state.settings.wakeHour * 60 - 7 * 60;
+  const blocks = [];
+  let napIndex = 0;
+  rows.forEach((row) => {
+    const baseStart = toMinute(row.start_time);
+    const start = baseStart + shift;
+    const end = normalizeEnd(toMinute(row.end_time), baseStart) + shift;
+    if (hasAny(csvText(row), ['сон']) && !hasAny(csvText(row), ['ноч'])) napIndex += 1;
+    blocks.push(...splitCsvRow(row, start, end, napIndex));
+  });
+  return normalizeCsvNapLabels(blocks).sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
 function isCurrentCustomSchedule(schedule) {
