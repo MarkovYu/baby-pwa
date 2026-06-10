@@ -1046,8 +1046,8 @@ function blockIcon(block) {
   return icon(block.type);
 }
 
-function bedtimeSvg() { return miniSvg(`<path d="M3 12h4l3-9 4 18 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`); }
-function quietSvg() { return miniSvg(`<path d="M12 3a4 4 0 0 1 4 4c0 3-4 7-4 7S8 10 8 7a4 4 0 0 1 4-4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/>`); }
+function bedtimeSvg() { return miniSvg(`<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17 6h.01M19 9h.01M15 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`); }
+function quietSvg() { return miniSvg(`<path d="M3 10c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M3 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`); }
 
 function render() {
   document.documentElement.dataset.theme = state.settings.theme;
@@ -1169,10 +1169,9 @@ function nowScreen() {
     <section class="card sleep-state">
       <div>
         <div class="kicker">${t('currentSleep')}</div>
-        <div class="sleep-state-label">${state.sleepStart ? '' : '<span class="awake-badge">' + t('awake') + '</span>'}</div>
-        <div class="muted" style="font-size:12px;margin-top:2px">${sleepNote}</div>
+        <div class="muted" style="font-size:12px;margin-top:4px">${sleepNote}</div>
       </div>
-      <div class="sleep-timer">${state.sleepStart ? duration(Date.now() - state.sleepStart) : ''}</div>
+      <div class="${state.sleepStart ? 'sleep-timer' : 'sleep-timer is-awake'}">${state.sleepStart ? duration(Date.now() - state.sleepStart) : t('awake')}</div>
     </section>
     <section class="card">
       <div class="kicker">${t('insight')}</div>
@@ -1180,7 +1179,7 @@ function nowScreen() {
     </section>
     <section class="card noise-card">
       <div class="select-wrap">
-        <span class="select-icon">${fileIcon(soundIconName())}</span>
+        <span class="select-icon">${soundIconSvg()}</span>
         <select data-action="sound-select">
           <option value="white" ${state.settings.sound === 'white' ? 'selected' : ''}>${t('whiteNoise')}</option>
           <option value="birds" ${state.settings.sound === 'birds' ? 'selected' : ''}>${t('birds')}</option>
@@ -1315,10 +1314,14 @@ function weeklyBars() {
     const total = list.reduce((sum, s) => sum + s.end - s.start, 0);
     return { total, date: dayStartDate(offset) };
   });
-  const max = Math.max(...totals.map((item) => item.total), 1);
+  const realMax = Math.max(...totals.map((item) => item.total), 0);
+  const max = realMax > 0 ? realMax : 1;
   return totals.map(({ total, date }) => {
-    const height = total ? 18 + (total / max) * 126 : 8;
-    return `<div class="bar-wrap"><strong>${duration(total)}</strong><div class="bar" style="height:${height}px"></div><span>${date.toLocaleDateString(locale(), { weekday: 'short' })}</span></div>`;
+    const hasData = total > 60000; // at least 1 min counts
+    const height = hasData ? 14 + (total / max) * 120 : 3;
+    const barStyle = hasData ? '' : ' style="opacity:.25"';
+    const label = hasData ? duration(total) : '—';
+    return `<div class="bar-wrap"><strong>${label}</strong><div class="bar"${barStyle} style="height:${height}px"></div><span>${date.toLocaleDateString(locale(), { weekday: 'short' })}</span></div>`;
   }).join('');
 }
 
@@ -1352,6 +1355,11 @@ function settingsScreen() {
       <div class="muted">${t('planStyle')}</div>
       ${segments('scheduleMode', [['fixed', t('fixed')], ['age', t('ageBased')], ['custom', t('custom')]])}
       <button class="secondary" data-action="rebuild-routine">${t('restartSetup')}</button>
+      <button class="secondary" data-action="restart-setup" style="opacity:.7;font-size:13px">${
+        state.settings.language === 'ru' ? 'Пройти начальную настройку' :
+        state.settings.language === 'de' ? 'Einrichtung wiederholen' :
+        'Redo initial setup'
+      }</button>
     </section>
     <section class="card settings-grid">
       <h2>${t('routineSaves')}</h2>
@@ -1436,6 +1444,16 @@ function soundIconName() {
   return 'sound';
 }
 
+function soundIconSvg() {
+  if (state.settings.sound === 'birds') {
+    return miniSvg(`<path d="M12 8c-2-3-6-3-8 0 0 4 3 6 8 10 5-4 8-6 8-10-2-3-6-3-8 0Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 4c1 1 3 2 6 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`);
+  }
+  if (state.settings.sound === 'rain') {
+    return miniSvg(`<path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 19v2M12 17v4M16 19v2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`);
+  }
+  return miniSvg(`<path d="M4 10v4h3l4 4V6l-4 4H4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 9c.8.8 1.2 1.8 1.2 3S15.8 14.2 15 15M18 7c1.4 1.4 2 3 2 5s-.6 3.6-2 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
+}
+
 function nav() {
   return `<nav class="nav">
     ${tabButton('now', sleepSvg(22), t('now'))}
@@ -1501,10 +1519,10 @@ function bottleSvg() { return miniSvg(`<path d="M10 3h4v3l-1 1v2.2l4 4V20a2 2 0 
 function toysSvg() { return miniSvg(`<path d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6v3H6v-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 19c2.6 1.5 5.4 1.5 8 0M9 10h.1M15 10h.1M10 13c1.2 1 2.8 1 4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
 function strollerSvg() { return miniSvg(`<path d="M8 6h8a5 5 0 0 1-5 5H7a5 5 0 0 1 5-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 11h10l-2 5H9l-2-5ZM8 20h.1M16 20h.1M4 6c0-2 1-3 3-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
 function soundSvg() { return miniSvg(`<path d="M4 10v4h3l4 4V6l-4 4H4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 9c.8.8 1.2 1.8 1.2 3S15.8 14.2 15 15M18 7c1.4 1.4 2 3 2 5s-.6 3.6-2 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
-function bulbSvg() { return fileIcon('bulb'); }
-function planSvg() { return fileIcon('plan'); }
-function barsSvg() { return fileIcon('graphs'); }
-function settingsSvg() { return fileIcon('settings'); }
+function bulbSvg() { return miniSvg(`<path d="M9 21h6M12 3a6 6 0 0 1 6 6c0 2.5-1.5 4.5-3 6H9C7.5 13.5 6 11.5 6 9a6 6 0 0 1 6-6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>`); }
+function planSvg() { return miniSvg(`<rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 4V2M16 4V2M3 9h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`); }
+function barsSvg() { return miniSvg(`<path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`); }
+function settingsSvg() { return miniSvg(`<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.8"/>`); }
 function chevronSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 function trashSvg() { return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4h6l1 2h4M4 6h16M7 6l1 14h8l1-14M10 10v6M14 10v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 
@@ -1551,13 +1569,38 @@ document.addEventListener('click', async (event) => {
     setTimeout(() => document.body.classList.remove('sleep-pop'), 360);
     if (state.sleepStart) {
       const end = Date.now();
-      state.sessions.push({ id: `sleep-${end}`, start: state.sleepStart, end });
+      // Merge with any overlapping sessions from today
+      const todayStart = dayStartDate().getTime();
+      const overlapping = state.sessions.filter(s =>
+        s.start >= todayStart && s.start <= end && s.end >= state.sleepStart
+      );
+      if (overlapping.length) {
+        // Extend the earliest overlapping session to cover everything
+        const mergedStart = Math.min(state.sleepStart, ...overlapping.map(s => s.start));
+        const mergedEnd = Math.max(end, ...overlapping.map(s => s.end));
+        state.sessions = state.sessions.filter(s => !overlapping.includes(s));
+        state.sessions.push({ id: overlapping[0].id, start: mergedStart, end: mergedEnd });
+      } else {
+        state.sessions.push({ id: `sleep-${end}`, start: state.sleepStart, end });
+      }
       state.sessions = mergePersistedSessions(state.sessions);
       state.sleepStart = 0;
       localStorage.removeItem(LS.sleepStart);
       save(LS.sessions, state.sessions);
     } else {
-      state.sleepStart = Date.now();
+      // If there's already an active sleep session from today, resume from its start
+      const todayStart = dayStartDate().getTime();
+      const recentSleep = state.sessions.find(s =>
+        s.start >= todayStart && s.end >= Date.now() - 5 * 60000
+      );
+      if (recentSleep) {
+        // Extend instead of creating new: remove it and restart from its start
+        state.sessions = state.sessions.filter(s => s.id !== recentSleep.id);
+        save(LS.sessions, state.sessions);
+        state.sleepStart = recentSleep.start;
+      } else {
+        state.sleepStart = Date.now();
+      }
       localStorage.setItem(LS.sleepStart, String(state.sleepStart));
     }
     render();

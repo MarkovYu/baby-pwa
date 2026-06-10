@@ -211,6 +211,14 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   flex: 0 0 auto;
 }
 
+.icon-dot img.svg-icon {
+  filter: none;
+}
+
+[data-theme="night"] .icon-dot img.svg-icon {
+  filter: invert(1) brightness(1.8) saturate(0.3);
+}
+
 .block-title {
   font-size: var(--st);
   line-height: 1.2;
@@ -451,9 +459,8 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   color: white;
 }
 
-.tab svg { width: 20px; height: 20px; }
-.tab .svg-icon { width: 20px; height: 20px; }
-.tab.active .svg-icon { filter: brightness(0) invert(1); }
+.tab svg { width: 20px; height: 20px; color: inherit; }
+.tab .svg-icon { width: 20px; height: 20px; color: inherit; }
 .tab:active { transform: scale(.92); }
 
 /* ── Screens ── */
@@ -1084,6 +1091,17 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   color: var(--primary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.sleep-timer.is-awake {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 14px;
+  line-height: 1.6;
 }
 
 /* ── Fix block-title truncation ── */
