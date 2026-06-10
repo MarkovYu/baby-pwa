@@ -50,13 +50,13 @@ const labels = {
     night: 'Ночь',
     language: 'Язык',
     dayStart: 'Начало дня',
-    routineSaves: 'Сейвы распорядка',
-    routineSavesHelper: 'Три слота для разных вариантов дня.',
-    save: 'Сохр.',
-    load: 'Загр.',
+    routineSaves: 'Шаблоны дня',
+    routineSavesHelper: 'Сохраните до 3 вариантов распорядка — например, для разных дней.',
+    save: 'Сохранить',
+    load: 'Загрузить',
     empty: 'Пусто',
     saved: 'Сохранён',
-    restartSetup: 'Пересобрать план',
+    restartSetup: 'Пересобрать по возрасту',
     welcomeTitle: 'Спокойный режим сна для малыша',
     welcomeBody: 'Соберите гибкий план дня по возрасту и меняйте его под реальную жизнь.',
     pointNow: 'Показывает, что сейчас по плану и что дальше.',
@@ -71,8 +71,8 @@ const labels = {
     withoutRoutine: 'Начать без режима',
     notMedical: 'Гибкая подсказка, не медицинский совет.',
     planned: 'По плану',
-    savedToast: 'Распорядок сохранён',
-    loadedToast: 'Распорядок загружен',
+    savedToast: 'Шаблон сохранён',
+    loadedToast: 'Шаблон загружен',
     editBlock: 'Изменить блок',
     title: 'Название',
     type: 'Тип',
@@ -122,13 +122,13 @@ const labels = {
     night: 'Night',
     language: 'Language',
     dayStart: 'Day start',
-    routineSaves: 'Routine saves',
-    routineSavesHelper: 'Three slots for different day routines.',
+    routineSaves: 'Day templates',
+    routineSavesHelper: 'Save up to 3 day routines — handy for different schedules.',
     save: 'Save',
     load: 'Load',
     empty: 'Empty',
     saved: 'Saved',
-    restartSetup: 'Rebuild plan',
+    restartSetup: 'Rebuild from age',
     welcomeTitle: 'A calm sleep routine for your baby',
     welcomeBody: 'Build a flexible day plan based on age, then adjust it as real life happens.',
     pointNow: 'Shows what is happening now and what comes next.',
@@ -143,8 +143,8 @@ const labels = {
     withoutRoutine: 'Start without routine',
     notMedical: 'Flexible suggestion, not medical advice.',
     planned: 'Planned',
-    savedToast: 'Routine saved',
-    loadedToast: 'Routine loaded',
+    savedToast: 'Template saved',
+    loadedToast: 'Template loaded',
     editBlock: 'Edit block',
     title: 'Title',
     type: 'Type',
@@ -194,13 +194,13 @@ const labels = {
     night: 'Nacht',
     language: 'Sprache',
     dayStart: 'Tagesbeginn',
-    routineSaves: 'Routine-Saves',
-    routineSavesHelper: 'Drei Slots für verschiedene Tagesroutinen.',
+    routineSaves: 'Tagesvorlagen',
+    routineSavesHelper: 'Bis zu 3 Tagesroutinen speichern – z. B. für verschiedene Tage.',
     save: 'Sichern',
     load: 'Laden',
     empty: 'Leer',
     saved: 'Gesichert',
-    restartSetup: 'Plan neu erstellen',
+    restartSetup: 'Nach Alter neu erstellen',
     welcomeTitle: 'Eine ruhige Schlafroutine fürs Baby',
     welcomeBody: 'Erstelle einen flexiblen Tagesplan nach Alter und passe ihn an den Alltag an.',
     pointNow: 'Zeigt, was jetzt dran ist und was als Nächstes kommt.',
@@ -215,8 +215,8 @@ const labels = {
     withoutRoutine: 'Ohne Routine starten',
     notMedical: 'Flexible Orientierung, kein medizinischer Rat.',
     planned: 'Geplant',
-    savedToast: 'Routine gespeichert',
-    loadedToast: 'Routine geladen',
+    savedToast: 'Vorlage gespeichert',
+    loadedToast: 'Vorlage geladen',
     editBlock: 'Block bearbeiten',
     title: 'Titel',
     type: 'Typ',
@@ -230,18 +230,18 @@ const labels = {
 
 const blockLabels = {
   wake_feeding: { ru: 'Подъём + кормление', en: 'Wake + feeding', de: 'Aufwachen + Füttern' },
-  play_tummy: { ru: 'Игры, tummy time', en: 'Play, tummy time', de: 'Spielen, Bauchzeit' },
-  wind_down: { ru: 'Подготовка ко сну', en: 'Wind-down', de: 'Zur Ruhe kommen' },
+  play_tummy: { ru: 'Игры на животике', en: 'Play, tummy time', de: 'Spielen, Bauchzeit' },
+  wind_down: { ru: 'Успокаиваемся', en: 'Wind-down', de: 'Zur Ruhe kommen' },
   nap_1: { ru: 'Сон 1', en: 'Nap 1', de: 'Schlaf 1' },
   feeding_diaper: { ru: 'Кормление + памперс', en: 'Feeding + diaper', de: 'Füttern + Windel' },
   play: { ru: 'Игры', en: 'Play', de: 'Spielen' },
-  quiet_play: { ru: 'Спокойное бодрствование', en: 'Calm awake time', de: 'Ruhige Wachzeit' },
+  quiet_play: { ru: 'Тихое время', en: 'Calm awake time', de: 'Ruhige Wachzeit' },
   nap_2: { ru: 'Сон 2', en: 'Nap 2', de: 'Schlaf 2' },
   walk: { ru: 'Прогулка', en: 'Walk', de: 'Spaziergang' },
   main_nap: { ru: 'Главный сон', en: 'Main nap', de: 'Hauptschlaf' },
   nap_4: { ru: 'Сон 4', en: 'Nap 4', de: 'Schlaf 4' },
   top_up: { ru: 'Кормление', en: 'Feeding', de: 'Füttern' },
-  settling: { ru: 'Укладывание', en: 'Settling', de: 'Einschlafen' },
+  settling: { ru: 'Засыпаем', en: 'Settling', de: 'Einschlafen' },
   night_sleep: { ru: 'Ночной сон', en: 'Night sleep', de: 'Nachtschlaf' },
   dream_feed: { ru: 'Сонное кормление', en: 'Dream feed', de: 'Traumfütterung' },
   extra_sleep: { ru: 'Досып', en: 'Extra sleep', de: 'Weiterschlafen' },
@@ -255,7 +255,7 @@ Object.assign(blockLabels, {
   lunch: { ru: 'Обед', en: 'Lunch', de: 'Mittagessen' },
   dinner: { ru: 'Ужин', en: 'Dinner', de: 'Abendessen' },
   snack: { ru: 'Перекус', en: 'Snack', de: 'Snack' },
-  bedtime_routine: { ru: 'Ритуал сна', en: 'Bedtime routine', de: 'Abendroutine' },
+  bedtime_routine: { ru: 'Подготовка ко сну', en: 'Bedtime routine', de: 'Abendroutine' },
 });
 
 const defaultSettings = {
@@ -284,6 +284,7 @@ const state = {
   noisePlaying: false,
   planAtTop: true,
   installPrompt: null,
+  rebuilding: false,
 };
 
 function load(key, fallback) {
@@ -1040,8 +1041,13 @@ function icon(type) {
 function blockIcon(block) {
   const text = `${block.rawEventType || ''} ${block.title || ''} ${block.labelKey || ''}`.toLowerCase();
   if (block.type === 'active' && (text.includes('прогул') || text.includes('улиц'))) return fileIcon('stroller');
+  if (block.labelKey === 'bedtime_routine' || block.labelKey === 'wind_down' || block.labelKey === 'settling') return bedtimeSvg();
+  if (block.labelKey === 'quiet_play') return quietSvg();
   return icon(block.type);
 }
+
+function bedtimeSvg() { return miniSvg(`<path d="M3 12h4l3-9 4 18 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`); }
+function quietSvg() { return miniSvg(`<path d="M12 3a4 4 0 0 1 4 4c0 3-4 7-4 7S8 10 8 7a4 4 0 0 1 4-4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/>`); }
 
 function render() {
   document.documentElement.dataset.theme = state.settings.theme;
@@ -1128,7 +1134,15 @@ function renderApp() {
     ${state.tab === 'now' && (state.sleepStart || state.noisePlaying) ? effects() : ''}
     ${nav()}
     ${state.editor ? editorModal() : ''}
+    ${state.rebuilding ? rebuildingOverlay() : ''}
   `;
+}
+
+function rebuildingOverlay() {
+  const msg = state.settings.language === 'ru' ? 'Пересобираю план…'
+    : state.settings.language === 'de' ? 'Plan wird erstellt…'
+    : 'Rebuilding plan…';
+  return `<div class="rebuilding-overlay"><div class="rebuilding-card"><div class="rebuilding-spinner"></div><div class="rebuilding-text">${msg}</div></div></div>`;
 }
 
 function nowScreen() {
@@ -1154,10 +1168,11 @@ function nowScreen() {
     ${scheduleCard(next, timeUntilLabel(Math.max(0, next.start - minute) * 60000), false)}
     <section class="card sleep-state">
       <div>
-        <strong>${t('currentSleep')}</strong>
-        <div class="muted">${sleepNote}</div>
+        <div class="kicker">${t('currentSleep')}</div>
+        <div class="sleep-state-label">${state.sleepStart ? '' : '<span class="awake-badge">' + t('awake') + '</span>'}</div>
+        <div class="muted" style="font-size:12px;margin-top:2px">${sleepNote}</div>
       </div>
-      <strong>${state.sleepStart ? duration(Date.now() - state.sleepStart) : t('awake')}</strong>
+      <div class="sleep-timer">${state.sleepStart ? duration(Date.now() - state.sleepStart) : ''}</div>
     </section>
     <section class="card">
       <div class="kicker">${t('insight')}</div>
@@ -1307,6 +1322,23 @@ function weeklyBars() {
   }).join('');
 }
 
+function slotName(i) {
+  const names = {
+    ru: ['Шаблон 1', 'Шаблон 2', 'Шаблон 3'],
+    en: ['Template 1', 'Template 2', 'Template 3'],
+    de: ['Vorlage 1', 'Vorlage 2', 'Vorlage 3'],
+  };
+  return (names[state.settings.language] || names.en)[i] || `#${i+1}`;
+}
+
+function formatSlotDate(savedAt) {
+  const d = new Date(savedAt);
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
+}
+
+function saveSvg() { return miniSvg(`<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`); }
+function loadSvg() { return miniSvg(`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`); }
+
 function settingsScreen() {
   const s = state.settings;
   return `
@@ -1324,7 +1356,7 @@ function settingsScreen() {
     <section class="card settings-grid">
       <h2>${t('routineSaves')}</h2>
       <div class="muted">${t('routineSavesHelper')}</div>
-      ${state.saves.map((slot, i) => `<div class="slot"><div><div class="slot-title">${t('save')} ${i + 1}</div><div class="slot-meta">${slot ? `${t('saved')}: ${new Date(slot.savedAt).toLocaleDateString(locale())}` : t('empty')}</div></div><button data-save-slot="${i}">${t('save')}</button><button data-load-slot="${i}" ${slot ? '' : 'disabled'}>${t('load')}</button></div>`).join('')}
+      ${state.saves.map((slot, i) => `<div class="slot"><div><div class="slot-title">${slotName(i)}</div><div class="slot-meta">${slot ? formatSlotDate(slot.savedAt) : t('empty')}</div></div><button data-save-slot="${i}" title="${t('save')}">${saveSvg()}</button><button data-load-slot="${i}" ${slot ? '' : 'disabled'} title="${t('load')}">${loadSvg()}</button></div>`).join('')}
     </section>
     <section class="card settings-grid">
       <h2>${t('theme')}</h2>
@@ -1464,7 +1496,7 @@ function miniSvg(content, viewBox = '0 0 24 24') {
 }
 function fileIcon(name) { return `<img class="svg-icon" src="./icons/${name}.svg" alt="" loading="eager" />`; }
 function sleepMiniSvg() { return miniSvg(`<path d="M19.8 14.1c-1.1 4-4.8 6.9-9.1 6.9A9.7 9.7 0 0 1 8.2 2c.7-.2 1.1.6.7 1.1A7 7 0 0 0 14.2 14c1.7 0 3.2-.6 4.4-1.6.6-.5 1.4.2 1.2 1.7Z" fill="currentColor"/>`); }
-function calmSvg() { return miniSvg(`<path d="M4 13c2.2-2.2 4.4-2.2 6.6 0s4.4 2.2 6.6 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M4 8c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
+function calmSvg() { return miniSvg(`<path d="M12 21C12 21 4 15.5 4 10a8 8 0 0 1 16 0c0 5.5-8 11-8 11Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`); }
 function bottleSvg() { return miniSvg(`<path d="M10 3h4v3l-1 1v2.2l4 4V20a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6.8l4-4V7l-1-1V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15h6M9 18h6M10 6h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
 function toysSvg() { return miniSvg(`<path d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6v3H6v-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 19c2.6 1.5 5.4 1.5 8 0M9 10h.1M15 10h.1M10 13c1.2 1 2.8 1 4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
 function strollerSvg() { return miniSvg(`<path d="M8 6h8a5 5 0 0 1-5 5H7a5 5 0 0 1 5-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 11h10l-2 5H9l-2-5ZM8 20h.1M16 20h.1M4 6c0-2 1-3 3-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
@@ -1618,10 +1650,14 @@ document.addEventListener('click', async (event) => {
     render();
   }
   if (action === 'rebuild-routine') {
+    state.rebuilding = true;
+    render();
+    await new Promise(r => setTimeout(r, 900));
     state.settings.scheduleMode = 'age';
     state.customSchedule = null;
     save(LS.settings, state.settings);
     localStorage.removeItem(LS.customSchedule);
+    state.rebuilding = false;
     toast(state.settings.language === 'ru'
       ? 'План пересобран по возрасту.'
       : state.settings.language === 'de'
