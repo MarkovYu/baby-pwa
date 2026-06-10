@@ -1084,6 +1084,7 @@ function editorModal() {
           <label>${t('end')}<input name="end" type="time" value="${clock(e.end)}" /></label>
         </div>
         <div class="modal-actions">
+          ${e.mode === 'sleep' && e.sourceIds?.length ? `<button type="button" class="danger compact-danger" data-action="delete-sleep-entry">${state.settings.language === 'ru' ? 'Удалить' : state.settings.language === 'de' ? 'Löschen' : 'Delete'}</button>` : ''}
           <button type="button" class="secondary" data-action="close-editor">${t('cancel')}</button>
           <button type="submit" class="primary">${t('saveChanges')}</button>
         </div>
@@ -1344,6 +1345,19 @@ document.addEventListener('click', async (event) => {
   if (action === 'close-editor') {
     state.editor = null;
     render();
+  }
+  if (action === 'delete-sleep-entry' && state.editor?.mode === 'sleep' && state.editor.sourceIds?.length) {
+    const message = state.settings.language === 'ru'
+      ? 'Удалить этот интервал сна?'
+      : state.settings.language === 'de'
+        ? 'Diesen Schlafabschnitt löschen?'
+        : 'Delete this sleep interval?';
+    if (window.confirm(message)) {
+      state.sessions = state.sessions.filter((s) => !state.editor.sourceIds.includes(s.id));
+      save(LS.sessions, state.sessions);
+      state.editor = null;
+      render();
+    }
   }
   if (target.dataset.editPlan) {
     const block = generateSchedule().find((item) => item.id === target.dataset.editPlan);
