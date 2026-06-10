@@ -935,8 +935,7 @@ function planScreen() {
     const top = 44 + (sm - state.settings.wakeHour * 60) * PLAN_PX;
     const height = Math.max(44, (em - sm) * PLAN_PX);
     const ids = (s.sourceIds || [s.id]).join(',');
-    const deleteButton = s.active ? '' : `<button class="actual-delete" data-delete-sleep="${ids}" aria-label="${state.settings.language === 'ru' ? 'Удалить сон' : state.settings.language === 'de' ? 'Schlaf löschen' : 'Delete sleep'}">${trashSvg()}</button>`;
-    return `<div class="actual-block" ${s.active ? '' : `data-edit-sleep="${ids}"`} style="top:${top}px;height:${height}px">${deleteButton}<div class="block-small">${icon('sleep')} ${t('sleep')}</div><div>${clock(sm)}–${s.active ? t('now') : clock(em)}</div><div>${duration(s.end - s.start)}</div></div>`;
+    return `<div class="actual-block" ${s.active ? '' : `data-edit-sleep="${ids}"`} style="top:${top}px;height:${height}px"><div class="block-small">${icon('sleep')} ${t('sleep')}</div><div>${clock(sm)}–${s.active ? t('now') : clock(em)}</div><div>${duration(s.end - s.start)}</div></div>`;
   }).join('');
   const timelineHeight = 44 + DAY * PLAN_PX;
   const currentTop = 44 + Math.max(0, Math.min(DAY, minute - state.settings.wakeHour * 60)) * PLAN_PX;
@@ -1071,10 +1070,19 @@ function settingsScreen() {
 
 function editorModal() {
   const e = state.editor;
+  const editingSleep = e.mode === 'sleep' && e.sourceIds?.length;
+  const sleepTitle = editingSleep
+    ? state.settings.language === 'ru'
+      ? 'Изменить сон'
+      : state.settings.language === 'de'
+        ? 'Schlaf ändern'
+        : 'Edit sleep'
+    : t('addSleep');
   return `
     <div class="modal-backdrop" data-action="close-editor">
       <form class="modal-card" data-editor-form>
-        <h2>${e.mode === 'sleep' ? t('addSleep') : t('editBlock')}</h2>
+        ${editingSleep ? `<button type="button" class="modal-trash" data-action="delete-sleep-entry" aria-label="${state.settings.language === 'ru' ? 'Удалить сон' : state.settings.language === 'de' ? 'Schlaf löschen' : 'Delete sleep'}">${trashSvg()}</button>` : ''}
+        <h2>${e.mode === 'sleep' ? sleepTitle : t('editBlock')}</h2>
         ${e.mode === 'sleep' ? '' : `
           <label>${t('title')}<input name="title" value="${escapeHtml(e.title)}" /></label>
           <label>${t('type')}<select name="type">
@@ -1358,19 +1366,6 @@ document.addEventListener('click', async (event) => {
       state.sessions = state.sessions.filter((s) => !state.editor.sourceIds.includes(s.id));
       save(LS.sessions, state.sessions);
       state.editor = null;
-      render();
-    }
-  }
-  if (target.dataset.deleteSleep) {
-    const ids = target.dataset.deleteSleep.split(',').filter(Boolean);
-    const message = state.settings.language === 'ru'
-      ? 'Удалить этот интервал сна?'
-      : state.settings.language === 'de'
-        ? 'Diesen Schlafabschnitt löschen?'
-        : 'Delete this sleep interval?';
-    if (ids.length && window.confirm(message)) {
-      state.sessions = state.sessions.filter((s) => !ids.includes(s.id));
-      save(LS.sessions, state.sessions);
       render();
     }
   }
