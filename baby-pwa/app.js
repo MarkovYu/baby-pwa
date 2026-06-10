@@ -1439,8 +1439,9 @@ document.addEventListener('change', (event) => {
     if (state.noisePlaying) {
       const audio = document.getElementById('noiseAudio');
       audio.src = soundSrc(state.settings.sound);
-      audio.play();
+      audio.play().catch(() => {});
     }
+    render();
   }
 });
 
