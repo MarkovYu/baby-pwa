@@ -736,6 +736,287 @@ function plannedTotal(schedule) {
   return schedule.filter((b) => b.type === 'sleep').reduce((sum, b) => sum + (b.end - b.start) * 60000, 0);
 }
 
+function sleepMinuteFromMs(ms) {
+  const dayStart = dayStartDate().getTime();
+  return (ms - dayStart) / 60000 + state.settings.wakeHour * 60;
+}
+
+function langPick(values) {
+  return values[state.settings.language] || values.en;
+}
+
+const insightLibrary = {
+  ru: {
+    baby: [
+      'Сон растёт вместе с малышом.',
+      'Много коротких снов — это нормально.',
+      'Дневные сны тоже считаются.',
+      'Малышу можно помогать засыпать.',
+      'Ритм дня ещё только формируется.',
+      'Светлое утро и спокойный вечер помогают биоритмам.',
+      'Частые ночные пробуждения в этом возрасте ожидаемы.',
+      'Сон на спине — самый безопасный вариант.',
+      'Усталость лучше ловить рано.',
+      'Короткое бодрствование — тоже активный день.',
+    ],
+    infant: [
+      'Малышу нужно примерно 12–16 часов сна в сутки.',
+      'Дневные сны поддерживают хорошую ночь.',
+      'Стабильный вечерний ритуал помогает засыпанию.',
+      'Прогулка днём помогает телу различать день и ночь.',
+      'Активная игра днём поддерживает здоровый сон.',
+      'Спокойное время перед сном помогает нервной системе.',
+      'Короткие дневные сны бывают нормой.',
+      'Режим может меняться во время скачков развития.',
+      'После насыщенного дня малышу может понадобиться больше помощи.',
+      'Хороший сон — это не всегда сон без пробуждений.',
+    ],
+    toddler: [
+      'Ребёнку обычно нужно 11–14 часов сна в сутки.',
+      'Один дневной сон может хорошо поддерживать вечер.',
+      'Предсказуемый день помогает ребёнку чувствовать себя спокойно.',
+      'Активные прогулки днём помогают лучше спать ночью.',
+      'Перед сном лучше выбирать тихие игры.',
+      'Книга, ванна и объятия — хороший вечерний ритуал.',
+      'Если день был сложным, раннее укладывание может помочь.',
+      'Дневной сон — это часть здорового развития.',
+      'Ребёнок не обязан спать идеально каждый день.',
+      'Главное — общий баланс сна, движения и отдыха.',
+    ],
+    universal: [
+      'Сегодня хороший день для мягкого ритма.',
+      'Сон — это тоже развитие.',
+      'Малышу можно помогать отдыхать.',
+      'Небольшие отклонения от режима — это нормально.',
+      'Смотри на ребёнка, не только на часы.',
+      'После активной игры нужен спокойный переход.',
+      'Прогулка — хороший помощник сна.',
+      'Ритуал перед сном работает через повторение.',
+      'Короткий сон всё равно считается сном.',
+      'Усталость легче предупредить, чем догонять.',
+      'Спокойный вечер помогает всей семье.',
+      'Режим можно настраивать мягко.',
+      'Достаточно хороший день — уже хорошо.',
+      'У малыша могут быть разные дни.',
+      'Сон, еда и игра работают вместе.',
+      'Чем младше ребёнок, тем гибче расписание.',
+      'Хороший ритм строится постепенно.',
+      'Сегодня можно просто поддержать базу: сон, еда, контакт.',
+      'Не каждый день должен быть идеальным.',
+      'Забота о сне — это забота о развитии.',
+    ],
+  },
+  en: {
+    baby: [
+      'Sleep grows together with your baby.',
+      'Many short sleeps can be normal.',
+      'Daytime sleep counts too.',
+      'It is okay to help baby fall asleep.',
+      'The day rhythm is still forming.',
+      'Bright mornings and calm evenings support body rhythms.',
+      'Frequent night wakings can be expected at this age.',
+      'Back sleeping is the safest sleep position.',
+      'It helps to notice tired signs early.',
+      'A short awake window is still an active day.',
+    ],
+    infant: [
+      'Babies often need about 12–16 hours of sleep a day.',
+      'Day naps can support a better night.',
+      'A steady bedtime routine can help sleep.',
+      'A daytime walk helps the body tell day from night.',
+      'Active play during the day supports healthy sleep.',
+      'Quiet time before bed helps the nervous system settle.',
+      'Short naps can still be normal.',
+      'Routines can shift during development jumps.',
+      'After a busy day, baby may need more help.',
+      'Good sleep does not always mean no wakings.',
+    ],
+    toddler: [
+      'Toddlers often need about 11–14 hours of sleep a day.',
+      'One daytime nap can support the evening well.',
+      'A predictable day can help a child feel calm.',
+      'Active walks during the day can help night sleep.',
+      'Quiet games are best before bed.',
+      'Books, bath, and cuddles make a good bedtime routine.',
+      'After a hard day, an earlier bedtime may help.',
+      'Daytime sleep is part of healthy development.',
+      'A child does not have to sleep perfectly every day.',
+      'The big picture is sleep, movement, and rest.',
+    ],
+    universal: [
+      'Today can be a day for a gentle rhythm.',
+      'Sleep is part of development too.',
+      'It is okay to help baby rest.',
+      'Small routine shifts are normal.',
+      'Watch the baby, not only the clock.',
+      'Active play needs a calm transition after it.',
+      'A walk can be a helpful sleep support.',
+      'Bedtime routines work through repetition.',
+      'A short sleep still counts as sleep.',
+      'Tiredness is easier to prevent than catch up.',
+      'A calm evening helps the whole family.',
+      'The routine can be adjusted gently.',
+      'A good-enough day is already good.',
+      'Babies can have different kinds of days.',
+      'Sleep, food, and play work together.',
+      'The younger the baby, the more flexible the plan.',
+      'A good rhythm builds gradually.',
+      'Today can simply support sleep, food, and connection.',
+      'Not every day has to be perfect.',
+      'Caring for sleep is caring for development.',
+    ],
+  },
+  de: {
+    baby: [
+      'Schlaf wächst mit dem Baby mit.',
+      'Viele kurze Schlafphasen können normal sein.',
+      'Tagschlaf zählt auch.',
+      'Du darfst deinem Baby beim Einschlafen helfen.',
+      'Der Tagesrhythmus bildet sich erst.',
+      'Helles Morgenlicht und ruhige Abende unterstützen den Rhythmus.',
+      'Häufiges Aufwachen nachts ist in diesem Alter zu erwarten.',
+      'Schlafen auf dem Rücken ist am sichersten.',
+      'Müdigkeit früh zu erkennen hilft.',
+      'Auch kurze Wachzeiten sind ein aktiver Tag.',
+    ],
+    infant: [
+      'Babys brauchen oft etwa 12–16 Stunden Schlaf am Tag.',
+      'Tagschlaf kann die Nacht unterstützen.',
+      'Ein stabiler Abendritual hilft beim Einschlafen.',
+      'Ein Spaziergang am Tag hilft, Tag und Nacht zu unterscheiden.',
+      'Aktives Spielen am Tag unterstützt gesunden Schlaf.',
+      'Ruhige Zeit vor dem Schlafen hilft dem Nervensystem.',
+      'Kurze Tagschläfchen können normal sein.',
+      'Der Rhythmus kann sich bei Entwicklungsschüben verändern.',
+      'Nach einem vollen Tag braucht dein Baby vielleicht mehr Hilfe.',
+      'Guter Schlaf heißt nicht immer Schlaf ohne Aufwachen.',
+    ],
+    toddler: [
+      'Kinder brauchen oft etwa 11–14 Stunden Schlaf am Tag.',
+      'Ein Tagschlaf kann den Abend gut unterstützen.',
+      'Ein vorhersehbarer Tag hilft dem Kind, ruhig zu bleiben.',
+      'Aktive Spaziergänge am Tag können den Nachtschlaf unterstützen.',
+      'Vor dem Schlafen passen ruhige Spiele am besten.',
+      'Buch, Bad und Kuscheln sind ein gutes Abendritual.',
+      'Nach einem schweren Tag kann früheres Hinlegen helfen.',
+      'Tagschlaf ist Teil gesunder Entwicklung.',
+      'Ein Kind muss nicht jeden Tag perfekt schlafen.',
+      'Wichtig ist die Balance aus Schlaf, Bewegung und Ruhe.',
+    ],
+    universal: [
+      'Heute darf der Rhythmus sanft bleiben.',
+      'Schlaf ist auch Entwicklung.',
+      'Du darfst deinem Baby beim Ausruhen helfen.',
+      'Kleine Abweichungen vom Plan sind normal.',
+      'Achte auf das Kind, nicht nur auf die Uhr.',
+      'Nach aktivem Spielen hilft ein ruhiger Übergang.',
+      'Ein Spaziergang kann den Schlaf unterstützen.',
+      'Abendrituale wirken durch Wiederholung.',
+      'Ein kurzer Schlaf zählt trotzdem.',
+      'Müdigkeit ist leichter vorzubeugen als aufzuholen.',
+      'Ein ruhiger Abend hilft der ganzen Familie.',
+      'Der Rhythmus darf sanft angepasst werden.',
+      'Ein ausreichend guter Tag ist schon gut.',
+      'Babys haben unterschiedliche Tage.',
+      'Schlaf, Essen und Spiel wirken zusammen.',
+      'Je jünger das Baby, desto flexibler der Plan.',
+      'Ein guter Rhythmus wächst Schritt für Schritt.',
+      'Heute reichen vielleicht Schlaf, Essen und Nähe.',
+      'Nicht jeder Tag muss perfekt sein.',
+      'Schlaf zu unterstützen heißt Entwicklung zu unterstützen.',
+    ],
+  },
+};
+
+function insightAgeGroup(age) {
+  if (age <= 3) return 'baby';
+  if (age <= 11) return 'infant';
+  return 'toddler';
+}
+
+function pickInsight(kind = 'universal') {
+  const lang = state.settings.language;
+  const library = insightLibrary[lang] || insightLibrary.en;
+  const ageGroup = insightAgeGroup(state.settings.ageMonths);
+  const list = [...(library[kind] || []), ...(library[ageGroup] || []), ...(library.universal || [])];
+  if (!list.length) return t('insightDefault');
+  const date = dayStartDate();
+  const seed = date.getFullYear() * 372 + date.getMonth() * 31 + date.getDate() + state.settings.ageMonths * 17 + nowMinute() / 180;
+  return list[Math.floor(seed) % list.length];
+}
+
+function insightText(schedule, current, sessions, minute, plannedByNow, actualByNow) {
+  const p = presetFor(state.settings.ageMonths);
+  const plannedSleep = schedule.filter((b) => b.type === 'sleep');
+  const activeSleep = state.sleepStart ? {
+    start: sleepMinuteFromMs(state.sleepStart),
+    end: minute,
+  } : null;
+  const activeInsidePlan = activeSleep && plannedSleep.some((b) => Math.min(activeSleep.end, b.end) - Math.max(activeSleep.start, b.start) > 0);
+  if (activeInsidePlan) {
+    return langPick({
+      ru: 'Короткий сон всё равно считается сном.',
+      en: 'A short sleep still counts as sleep.',
+      de: 'Ein kurzer Schlaf zählt trotzdem.',
+    });
+  }
+  if (activeSleep) {
+    return langPick({
+      ru: 'Небольшие отклонения от режима — это нормально.',
+      en: 'Small routine shifts are normal.',
+      de: 'Kleine Abweichungen vom Plan sind normal.',
+    });
+  }
+
+  const nowMs = state.tick;
+  const finished = sessions.filter((s) => !s.active && s.end <= nowMs).sort((a, b) => b.end - a.end);
+  const last = finished[0];
+  if (last) {
+    const sinceLast = Math.max(0, nowMs - last.end);
+    const sinceMinutes = Math.round(sinceLast / 60000);
+    if (sinceMinutes > p.wakeMax + 20 && current.type !== 'sleep') {
+      return langPick({
+        ru: 'Усталость легче предупредить, чем догонять.',
+        en: 'Tiredness is easier to prevent than catch up.',
+        de: 'Müdigkeit ist leichter vorzubeugen als aufzuholen.',
+      });
+    }
+    if (sinceMinutes < 45 && current.type !== 'sleep') {
+      return langPick({
+        ru: 'Малыш недавно спал. Ритм можно держать мягким.',
+        en: 'Baby slept recently. The routine can stay gentle for now.',
+        de: 'Das Baby hat vor kurzem geschlafen. Der Rhythmus kann sanft bleiben.',
+      });
+    }
+  } else if (minute - state.settings.wakeHour * 60 > p.wakeMax + 20 && current.type !== 'sleep') {
+    return langPick({
+      ru: 'Если малыш устал раньше, можно уложить раньше.',
+      en: 'If baby seems tired earlier, bedtime or nap can come earlier.',
+      de: 'Wenn das Baby früher müde wirkt, darf der Schlaf früher kommen.',
+    });
+  }
+
+  if ((current.type === 'calm' || current.labelKey === 'bedtime_routine') && !state.sleepStart) {
+    return langPick({
+      ru: 'Ритуал перед сном работает через повторение.',
+      en: 'Bedtime routines work through repetition.',
+      de: 'Abendrituale wirken durch Wiederholung.',
+    });
+  }
+
+  if (plannedByNow > 30 * 60000 && actualByNow < plannedByNow * 0.65 && minute < state.settings.wakeHour * 60 + 13 * 60) {
+    return langPick({
+      ru: 'Если сон был коротким, следующий отдых может быть чуть раньше.',
+      en: 'If sleep was short, the next rest can come a little earlier.',
+      de: 'Wenn der Schlaf kurz war, kann die nächste Pause etwas früher kommen.',
+    });
+  }
+
+  if (current.type === 'active') return pickInsight('universal');
+  if (current.type === 'feed') return pickInsight(insightAgeGroup(state.settings.ageMonths));
+  return pickInsight('universal');
+}
+
 function overlapPercent(schedule, sessions, dayStart) {
   const planned = schedule.filter((b) => b.type === 'sleep');
   const actual = sessions.reduce((sum, s) => sum + (s.end - s.start), 0);
@@ -859,6 +1140,7 @@ function nowScreen() {
   const actual = sessions.reduce((sum, s) => sum + s.end - s.start, 0);
   const planned = plannedSleepUntil(schedule, minute);
   const pct = planned ? Math.min(100, Math.round((actual / planned) * 100)) : 0;
+  const insight = insightText(schedule, current, sessions, minute, planned, actual);
   const time = new Date(state.tick);
   const sleepNote = state.sleepStart
     ? `${state.settings.language === 'ru' ? 'Начался с' : state.settings.language === 'de' ? 'Seit' : 'Started at'} ${clockFromMs(state.sleepStart)}`
@@ -879,7 +1161,7 @@ function nowScreen() {
     </section>
     <section class="card">
       <div class="kicker">${t('insight')}</div>
-      <div class="row" style="justify-content:flex-start;margin-top:8px">${bulbSvg()}<strong>${current.type === 'sleep' || current.type === 'calm' ? t('insightWindow') : t('insightDefault')}</strong></div>
+      <div class="insight-row">${bulbSvg()}<strong>${insight}</strong></div>
     </section>
     <section class="card noise-card">
       <div class="select-wrap">
