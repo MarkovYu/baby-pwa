@@ -1175,9 +1175,9 @@ function nowScreen() {
       <button class="play" data-action="toggle-noise">${state.noisePlaying ? pauseSvg() : playSvg()}</button>
     </section>
     <section class="card summary">
-      <div class="muted">${t('daySummary')}</div>
-      <div class="big">${t('sleep')}: ${duration(actual)}</div>
-      <div class="muted">${t('byNow')}: ${duration(actual)} / ${duration(planned)}</div>
+      <div class="kicker">${t('daySummary')}</div>
+      <div class="big">${duration(actual)}<span>${t('sleep').toLowerCase()}</span></div>
+      <div class="muted" style="font-size:12px;margin-bottom:6px">${t('byNow')}: ${duration(actual)} / ${duration(planned)} &middot; ${pct}%</div>
       <div class="progress"><span style="width:${pct}%"></span></div>
     </section>
   `;
@@ -1280,7 +1280,7 @@ function statsScreen() {
 }
 
 function statRow(label, value) {
-  return `<div class="row" style="padding:8px 0"><span class="muted">${label}</span><strong>${value}</strong></div>`;
+  return `<div class="stat-row-item"><span>${label}</span><strong>${value}</strong></div>`;
 }
 
 function dailyBars(sessions) {
@@ -1449,7 +1449,7 @@ async function toggleNoise() {
 function toast(message) {
   const node = document.createElement('div');
   node.textContent = message;
-  node.style.cssText = 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#20242a;color:white;padding:12px 16px;border-radius:16px;font-weight:900;z-index:99';
+  node.style.cssText = 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%) translateY(8px);background:rgba(20,18,40,.92);color:white;padding:11px 18px;border-radius:14px;font-weight:600;font-size:14px;z-index:99;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);box-shadow:0 8px 24px rgba(0,0,0,.3);animation:toastIn .2s ease-out forwards';
   document.body.appendChild(node);
   setTimeout(() => node.remove(), 1600);
 }
