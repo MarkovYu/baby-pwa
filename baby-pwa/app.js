@@ -934,7 +934,9 @@ function planScreen() {
     const em = (s.end - start) / 60000 + state.settings.wakeHour * 60;
     const top = 44 + (sm - state.settings.wakeHour * 60) * PLAN_PX;
     const height = Math.max(44, (em - sm) * PLAN_PX);
-    return `<button class="actual-block" ${s.active ? '' : `data-edit-sleep="${(s.sourceIds || [s.id]).join(',')}"`} style="top:${top}px;height:${height}px"><div class="block-small">${icon('sleep')} ${t('sleep')}</div><div>${clock(sm)}–${s.active ? t('now') : clock(em)}</div><div>${duration(s.end - s.start)}</div></button>`;
+    const ids = (s.sourceIds || [s.id]).join(',');
+    const deleteButton = s.active ? '' : `<button class="actual-delete" data-delete-sleep="${ids}" aria-label="${state.settings.language === 'ru' ? 'Удалить сон' : state.settings.language === 'de' ? 'Schlaf löschen' : 'Delete sleep'}">${trashSvg()}</button>`;
+    return `<div class="actual-block" ${s.active ? '' : `data-edit-sleep="${ids}"`} style="top:${top}px;height:${height}px">${deleteButton}<div class="block-small">${icon('sleep')} ${t('sleep')}</div><div>${clock(sm)}–${s.active ? t('now') : clock(em)}</div><div>${duration(s.end - s.start)}</div></div>`;
   }).join('');
   const timelineHeight = 44 + DAY * PLAN_PX;
   const currentTop = 44 + Math.max(0, Math.min(DAY, minute - state.settings.wakeHour * 60)) * PLAN_PX;
@@ -1084,7 +1086,6 @@ function editorModal() {
           <label>${t('end')}<input name="end" type="time" value="${clock(e.end)}" /></label>
         </div>
         <div class="modal-actions">
-          ${e.mode === 'sleep' && e.sourceIds?.length ? `<button type="button" class="danger compact-danger" data-action="delete-sleep-entry">${state.settings.language === 'ru' ? 'Удалить' : state.settings.language === 'de' ? 'Löschen' : 'Delete'}</button>` : ''}
           <button type="button" class="secondary" data-action="close-editor">${t('cancel')}</button>
           <button type="submit" class="primary">${t('saveChanges')}</button>
         </div>
@@ -1183,9 +1184,10 @@ function planSvg() { return fileIcon('plan'); }
 function barsSvg() { return fileIcon('graphs'); }
 function settingsSvg() { return fileIcon('settings'); }
 function chevronSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
+function trashSvg() { return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4h6l1 2h4M4 6h16M7 6l1 14h8l1-14M10 10v6M14 10v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 
 document.addEventListener('click', async (event) => {
-  const target = event.target.closest('button,[data-lang],[data-setting],[data-save-slot],[data-load-slot]');
+  const target = event.target.closest('button,[data-lang],[data-setting],[data-save-slot],[data-load-slot],[data-edit-sleep]');
   if (!target) return;
   if (target.dataset.lang) {
     state.settings.language = target.dataset.lang;
@@ -1356,6 +1358,19 @@ document.addEventListener('click', async (event) => {
       state.sessions = state.sessions.filter((s) => !state.editor.sourceIds.includes(s.id));
       save(LS.sessions, state.sessions);
       state.editor = null;
+      render();
+    }
+  }
+  if (target.dataset.deleteSleep) {
+    const ids = target.dataset.deleteSleep.split(',').filter(Boolean);
+    const message = state.settings.language === 'ru'
+      ? 'Удалить этот интервал сна?'
+      : state.settings.language === 'de'
+        ? 'Diesen Schlafabschnitt löschen?'
+        : 'Delete this sleep interval?';
+    if (ids.length && window.confirm(message)) {
+      state.sessions = state.sessions.filter((s) => !ids.includes(s.id));
+      save(LS.sessions, state.sessions);
       render();
     }
   }
