@@ -185,13 +185,18 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   align-items: start;
   gap: 10px;
   margin-top: 6px;
+  min-height: 60px; /* stable height so page doesn't jump */
 }
 
 .insight-row strong {
-  font-size: 15px;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.45;
   font-weight: 500;
   color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .title-row {
@@ -271,7 +276,7 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  min-height: 68px;
+  min-height: 72px; /* stable – prevents jump on sleep toggle */
 }
 
 .sleep-state strong {
@@ -772,7 +777,7 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   transition: background .14s ease, color .14s ease;
 }
 
-.segmented button.active { background: var(--primary); color: white; }
+.segmented button.active { background: var(--primary); color: #fff !important; }
 
 .stepper {
   display: grid;
@@ -1180,6 +1185,10 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   color: var(--muted);
 }
 
+[data-theme="night"] .segmented button.active {
+  color: #fff !important;
+}
+
 [data-theme="night"] .day-chip {
   background: var(--surface);
   border-color: var(--line);
@@ -1476,6 +1485,7 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 84px;
 }
 
 .sound-chips {
@@ -1520,3 +1530,11 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 }
 
 .sound-chip:active { transform: scale(.93); }
+
+[data-theme="night"] .insight-row img.svg-icon {
+  filter: invert(1) brightness(1.6) saturate(0.2);
+}
+
+.summary {
+  min-height: 92px;
+}

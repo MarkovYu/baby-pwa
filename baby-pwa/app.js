@@ -1177,13 +1177,13 @@ function confirmModal() {
   if (!c) return '';
   const cancelLabel = state.settings.language === 'ru' ? 'Отмена'
     : state.settings.language === 'de' ? 'Abbrechen' : 'Cancel';
-  return `<div class="modal-backdrop" data-action="cancel-confirm">
-    <div class="modal-card" style="max-width:360px" onclick="event.stopPropagation()">
+  return `<div class="modal-backdrop confirm-backdrop" data-action="cancel-confirm">
+    <div class="modal-card confirm-card" style="max-width:360px">
       <h2 style="font-size:18px;margin-bottom:8px">${c.title}</h2>
       <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 18px">${c.body}</p>
       <div class="modal-actions">
         <button class="secondary" style="min-height:46px;border-radius:12px;font-size:15px" data-action="cancel-confirm">${cancelLabel}</button>
-        <button class="${c.danger ? 'danger' : 'primary'}" style="min-height:46px;border-radius:12px;font-size:15px;background:${c.danger ? '' : ''}" data-action="do-confirm">${c.confirmLabel}</button>
+        <button class="${c.danger ? 'danger' : 'primary'}" style="min-height:46px;border-radius:12px;font-size:15px" data-action="do-confirm">${c.confirmLabel}</button>
       </div>
     </div>
   </div>`;
@@ -1583,12 +1583,34 @@ function chevronSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M6
 function trashSvg() { return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4h6l1 2h4M4 6h16M7 6l1 14h8l1-14M10 10v6M14 10v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 
 document.addEventListener('click', async (event) => {
-  const target = event.target.closest('button,[data-lang],[data-setting],[data-save-slot],[data-load-slot],[data-edit-sleep]');
+  // If confirm modal is open and click is inside the card (not backdrop), stop backdrop from closing
+  if (state.confirm && event.target.closest('.confirm-card')) {
+    // let button handlers below process normally, but don't dismiss via backdrop
+  } else if (state.confirm && !event.target.closest('.confirm-backdrop button')) {
+    // click was on backdrop area — dismiss
+    if (!event.target.closest('.confirm-card')) {
+      state.confirm = null;
+      render();
+      return;
+    }
+  }
+  const target = event.target.closest('button,[data-lang],[data-setting],[data-save-slot],[data-load-slot],[data-edit-sleep],[data-sound],[data-action]');
   if (!target) return;
   if (target.dataset.lang) {
     state.settings.language = target.dataset.lang;
     save(LS.settings, state.settings);
     render();
+  }
+  if (target.dataset.sound) {
+    state.settings.sound = target.dataset.sound;
+    save(LS.settings, state.settings);
+    if (state.noisePlaying) {
+      const audio = document.getElementById('noiseAudio');
+      audio.src = soundSrc(state.settings.sound);
+      audio.play().catch(() => {});
+    }
+    render();
+    return;
   }
   if (target.dataset.tab) {
     state.tab = target.dataset.tab;
@@ -1883,12 +1905,6 @@ document.addEventListener('submit', (event) => {
 
 document.addEventListener('change', (event) => {
   const target = event.target;
-  if (target.dataset.sound) {
-    state.settings.sound = target.dataset.sound;
-    save(LS.settings, state.settings);
-    render();
-    return;
-  }
   if (target.dataset.action === 'sound-select') {
     state.settings.sound = target.value;
     save(LS.settings, state.settings);
