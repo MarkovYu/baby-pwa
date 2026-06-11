@@ -285,6 +285,7 @@ const state = {
   planAtTop: true,
   installPrompt: null,
   rebuilding: false,
+  confirm: null, // { title, body, action, danger }
 };
 
 function load(key, fallback) {
@@ -1032,15 +1033,15 @@ function overlapPercent(schedule, sessions, dayStart) {
 }
 
 function icon(type) {
-  if (type === 'sleep') return fileIcon('sleep');
-  if (type === 'feed') return fileIcon('bottle');
-  if (type === 'active') return fileIcon('toys');
+  if (type === 'sleep') return miniSvg(`<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" fill="currentColor" opacity=".9"/>`);
+  if (type === 'feed') return miniSvg(`<path d="M10 3h4v3l-1 1v2.2l4 4V20a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6.8l4-4V7l-1-1V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15h6M9 18h6M10 6h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
+  if (type === 'active') return miniSvg(`<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M6.3 6.3 4.2 4.2M17.7 6.3l2.1-2.1M6.3 17.7l-2.1 2.1M17.7 17.7l2.1 2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
   return calmSvg();
 }
 
 function blockIcon(block) {
   const text = `${block.rawEventType || ''} ${block.title || ''} ${block.labelKey || ''}`.toLowerCase();
-  if (block.type === 'active' && (text.includes('прогул') || text.includes('улиц'))) return fileIcon('stroller');
+  if (block.type === 'active' && (text.includes('прогул') || text.includes('улиц'))) return miniSvg(`<path d="M8 6h8a5 5 0 0 1-5 5H7a5 5 0 0 1 5-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 11h10l-2 5H9l-2-5ZM8 20h.01M16 20h.01M4 6c0-2 1-3 3-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`);
   if (block.labelKey === 'bedtime_routine' || block.labelKey === 'wind_down' || block.labelKey === 'settling') return bedtimeSvg();
   if (block.labelKey === 'quiet_play') return quietSvg();
   return icon(block.type);
@@ -1061,58 +1062,90 @@ function renderOnboarding() {
   const app = document.getElementById('app');
   const p = presetFor(state.draftAge);
   const step = state.onboardingStep;
-  let body = '';
+
+  // Step dots
+  const totalSteps = 4;
+  const dots = Array.from({ length: totalSteps }, (_, i) =>
+    `<div class="ob-dot ${i === step ? 'active' : i < step ? 'done' : ''}"></div>`
+  ).join('');
+
+  let middle = '';
+  let primaryAction = 'next-onboarding';
+  let primaryLabel = t('start');
+  let secondaryAction = 'skip-onboarding';
+  let secondaryLabel = t('skip');
+  let showSecondary = step === 0 || step === 3;
+
   if (step === 0) {
-    body = `
-      <div class="onboard-top">
-        <div class="logo">${sleepSvg(52)}</div>
-        <div class="language">${languageButtons()}</div>
-      </div>
-      <h1 class="onboard-title">${t('welcomeTitle')}</h1>
-      <div class="onboard-body">${t('welcomeBody')}</div>
-      <div class="points">
-        <div class="point">${t('pointNow')}</div>
-        <div class="point">${t('pointSleep')}</div>
-        <div class="point">${t('pointRoutine')}</div>
-      </div>
-      <button class="primary" data-action="next-onboarding">${t('start')}</button>
-      <button class="secondary" data-action="skip-onboarding">${t('skip')}</button>
-    `;
+    primaryLabel = t('start');
+    middle = `
+      <h1 class="ob-title">${t('welcomeTitle')}</h1>
+      <p class="ob-body">${t('welcomeBody')}</p>
+      <div class="ob-points">
+        <div class="ob-point">${t('pointNow')}</div>
+        <div class="ob-point">${t('pointSleep')}</div>
+        <div class="ob-point">${t('pointRoutine')}</div>
+      </div>`;
   } else if (step === 1) {
-    body = `
-      <h1 class="onboard-title">${t('ageQuestion')}</h1>
-      <div class="stepper">
-        <button data-action="age-minus">−</button>
-        <strong>${state.draftAge} ${t('months')}</strong>
-        <button data-action="age-plus">+</button>
-      </div>
-      <button class="primary" data-action="next-onboarding">${t('start')}</button>
-    `;
+    primaryLabel = t('next') || (state.settings.language === 'ru' ? 'Далее' : state.settings.language === 'de' ? 'Weiter' : 'Next');
+    middle = `
+      <h1 class="ob-title">${t('ageQuestion')}</h1>
+      <div class="ob-stepper">
+        <button class="ob-step-btn" data-action="age-minus">−</button>
+        <div class="ob-step-val">${state.draftAge}<span>${t('months')}</span></div>
+        <button class="ob-step-btn" data-action="age-plus">+</button>
+      </div>`;
   } else if (step === 2) {
-    body = `
-      <h1 class="onboard-title">${t('wakeQuestion')}</h1>
-      <div class="stepper">
-        <button data-action="wake-minus">−</button>
-        <strong>${clock(state.draftWake * 60)}</strong>
-        <button data-action="wake-plus">+</button>
-      </div>
-      <button class="primary" data-action="next-onboarding">${t('start')}</button>
-    `;
+    primaryLabel = t('next') || (state.settings.language === 'ru' ? 'Далее' : state.settings.language === 'de' ? 'Weiter' : 'Next');
+    middle = `
+      <h1 class="ob-title">${t('wakeQuestion')}</h1>
+      <div class="ob-stepper">
+        <button class="ob-step-btn" data-action="wake-minus">−</button>
+        <div class="ob-step-val">${clock(state.draftWake * 60)}</div>
+        <button class="ob-step-btn" data-action="wake-plus">+</button>
+      </div>`;
   } else {
-    body = `
-      <h1 class="onboard-title">${t('previewTitle')}</h1>
-      <div class="card">
-        <div class="muted">${state.draftAge} ${t('months')}</div>
-        <div class="block-title">${p.napRange} ${t('sleep')}</div>
-        <div class="muted">${duration(p.wakeMin * 60000)} – ${duration(p.wakeMax * 60000)}</div>
-        <div class="muted">${t('dayStart')}: ${clock(state.draftWake * 60)}</div>
+    primaryAction = 'finish-onboarding';
+    primaryLabel = t('useRoutine');
+    secondaryLabel = t('withoutRoutine');
+    middle = `
+      <h1 class="ob-title">${t('previewTitle')}</h1>
+      <div class="ob-preview">
+        <div class="ob-preview-row">
+          <span>${state.settings.language === 'ru' ? 'Возраст' : state.settings.language === 'de' ? 'Alter' : 'Age'}</span>
+          <strong>${state.draftAge} ${t('months')}</strong>
+        </div>
+        <div class="ob-preview-row">
+          <span>${t('sleep')}</span>
+          <strong>${p.napRange}</strong>
+        </div>
+        <div class="ob-preview-row">
+          <span>${state.settings.language === 'ru' ? 'Бодрствование' : state.settings.language === 'de' ? 'Wachzeit' : 'Awake window'}</span>
+          <strong>${duration(p.wakeMin * 60000)}–${duration(p.wakeMax * 60000)}</strong>
+        </div>
+        <div class="ob-preview-row">
+          <span>${t('dayStart')}</span>
+          <strong>${clock(state.draftWake * 60)}</strong>
+        </div>
       </div>
-      <div class="muted">${t('notMedical')}</div>
-      <button class="primary" data-action="finish-onboarding">${t('useRoutine')}</button>
-      <button class="secondary" data-action="skip-onboarding">${t('withoutRoutine')}</button>
-    `;
+      <p class="ob-disclaimer">${t('notMedical')}</p>`;
   }
-  app.innerHTML = `<main class="onboarding"><section class="onboard-card">${body}</section></main>`;
+
+  app.innerHTML = `
+    <main class="ob-shell">
+      <header class="ob-header">
+        <div class="ob-logo">${sleepSvg(32)}</div>
+        <div class="language">${languageButtons()}</div>
+      </header>
+      <section class="ob-card">
+        <div class="ob-middle">${middle}</div>
+        <div class="ob-actions">
+          <button class="primary" data-action="${primaryAction}">${primaryLabel}</button>
+          ${showSecondary ? `<button class="secondary ob-secondary" data-action="${secondaryAction}">${secondaryLabel}</button>` : ''}
+        </div>
+        <div class="ob-dots">${dots}</div>
+      </section>
+    </main>`;
 }
 
 function languageButtons() {
@@ -1135,7 +1168,30 @@ function renderApp() {
     ${nav()}
     ${state.editor ? editorModal() : ''}
     ${state.rebuilding ? rebuildingOverlay() : ''}
+    ${state.confirm ? confirmModal() : ''}
   `;
+}
+
+function confirmModal() {
+  const c = state.confirm;
+  if (!c) return '';
+  const cancelLabel = state.settings.language === 'ru' ? 'Отмена'
+    : state.settings.language === 'de' ? 'Abbrechen' : 'Cancel';
+  return `<div class="modal-backdrop" data-action="cancel-confirm">
+    <div class="modal-card" style="max-width:360px" onclick="event.stopPropagation()">
+      <h2 style="font-size:18px;margin-bottom:8px">${c.title}</h2>
+      <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 18px">${c.body}</p>
+      <div class="modal-actions">
+        <button class="secondary" style="min-height:46px;border-radius:12px;font-size:15px" data-action="cancel-confirm">${cancelLabel}</button>
+        <button class="${c.danger ? 'danger' : 'primary'}" style="min-height:46px;border-radius:12px;font-size:15px;background:${c.danger ? '' : ''}" data-action="do-confirm">${c.confirmLabel}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function askConfirm(title, body, confirmLabel, action, danger = true) {
+  state.confirm = { title, body, confirmLabel, action, danger };
+  render();
 }
 
 function rebuildingOverlay() {
@@ -1165,7 +1221,7 @@ function nowScreen() {
       <div class="clock">${pad(time.getHours())}:${pad(time.getMinutes())}</div>
     </div>
     ${scheduleCard(current, t('now'), true)}
-    ${scheduleCard(next, timeUntilLabel(Math.max(0, next.start - minute) * 60000), false)}
+    ${scheduleCard(next, timeUntilLabel(Math.max(0, (next.start > minute ? next.start : next.start + DAY) - minute) * 60000), false)}
     <section class="card sleep-state">
       <div>
         <div class="kicker">${t('currentSleep')}</div>
@@ -1177,14 +1233,17 @@ function nowScreen() {
       <div class="kicker">${t('insight')}</div>
       <div class="insight-row">${bulbSvg()}<strong>${insight}</strong></div>
     </section>
-    <section class="card noise-card">
-      <div class="select-wrap">
-        <span class="select-icon">${soundIconSvg()}</span>
-        <select data-action="sound-select">
-          <option value="white" ${state.settings.sound === 'white' ? 'selected' : ''}>${t('whiteNoise')}</option>
-          <option value="birds" ${state.settings.sound === 'birds' ? 'selected' : ''}>${t('birds')}</option>
-          <option value="rain" ${state.settings.sound === 'rain' ? 'selected' : ''}>${t('rain')}</option>
-        </select>
+    <section class="card noise-card-v2">
+      <div class="sound-chips">
+        <button class="sound-chip ${state.settings.sound === 'white' ? 'active' : ''}" data-sound="white">
+          ${soundChipIcon('white')}<span>${t('whiteNoise')}</span>
+        </button>
+        <button class="sound-chip ${state.settings.sound === 'birds' ? 'active' : ''}" data-sound="birds">
+          ${soundChipIcon('birds')}<span>${t('birds')}</span>
+        </button>
+        <button class="sound-chip ${state.settings.sound === 'rain' ? 'active' : ''}" data-sound="rain">
+          ${soundChipIcon('rain')}<span>${t('rain')}</span>
+        </button>
       </div>
       <button class="play" data-action="toggle-noise">${state.noisePlaying ? pauseSvg() : playSvg()}</button>
     </section>
@@ -1298,11 +1357,11 @@ function statRow(label, value) {
 }
 
 function dailyBars(sessions) {
-  const items = sessions.filter((s) => s.end - s.start >= 5 * 60000).slice(0, 6);
-  if (!items.length) return `<div class="muted">—</div>`;
-  const max = Math.max(...items.map((s) => s.end - s.start));
+  const items = sessions.filter((s) => s.end - s.start >= 60000); // at least 1 min
+  if (!items.length) return `<div class="muted" style="padding:16px 0">—</div>`;
+  const max = Math.max(...items.map((s) => s.end - s.start), 1);
   return items.map((s) => {
-    const height = 18 + ((s.end - s.start) / max) * 126;
+    const height = 12 + ((s.end - s.start) / max) * 120;
     return `<div class="bar-wrap"><strong>${duration(s.end - s.start)}</strong><div class="bar" style="height:${height}px"></div><span>${clockFromMs(s.start)}</span></div>`;
   }).join('');
 }
@@ -1444,14 +1503,11 @@ function soundIconName() {
   return 'sound';
 }
 
-function soundIconSvg() {
-  if (state.settings.sound === 'birds') {
-    return miniSvg(`<path d="M12 8c-2-3-6-3-8 0 0 4 3 6 8 10 5-4 8-6 8-10-2-3-6-3-8 0Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 4c1 1 3 2 6 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`);
-  }
-  if (state.settings.sound === 'rain') {
-    return miniSvg(`<path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 19v2M12 17v4M16 19v2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`);
-  }
-  return miniSvg(`<path d="M4 10v4h3l4 4V6l-4 4H4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 9c.8.8 1.2 1.8 1.2 3S15.8 14.2 15 15M18 7c1.4 1.4 2 3 2 5s-.6 3.6-2 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
+function soundIconSvg() { return fileIcon(soundIconName()); }
+function soundChipIcon(type) {
+  if (type === 'birds') return fileIcon('bird');
+  if (type === 'rain')  return fileIcon('rain');
+  return fileIcon('sound');
 }
 
 function nav() {
@@ -1519,7 +1575,7 @@ function bottleSvg() { return miniSvg(`<path d="M10 3h4v3l-1 1v2.2l4 4V20a2 2 0 
 function toysSvg() { return miniSvg(`<path d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6v3H6v-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 19c2.6 1.5 5.4 1.5 8 0M9 10h.1M15 10h.1M10 13c1.2 1 2.8 1 4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
 function strollerSvg() { return miniSvg(`<path d="M8 6h8a5 5 0 0 1-5 5H7a5 5 0 0 1 5-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 11h10l-2 5H9l-2-5ZM8 20h.1M16 20h.1M4 6c0-2 1-3 3-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
 function soundSvg() { return miniSvg(`<path d="M4 10v4h3l4 4V6l-4 4H4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 9c.8.8 1.2 1.8 1.2 3S15.8 14.2 15 15M18 7c1.4 1.4 2 3 2 5s-.6 3.6-2 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
-function bulbSvg() { return miniSvg(`<path d="M9 21h6M12 3a6 6 0 0 1 6 6c0 2.5-1.5 4.5-3 6H9C7.5 13.5 6 11.5 6 9a6 6 0 0 1 6-6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>`); }
+function bulbSvg() { return fileIcon('bulb'); }
 function planSvg() { return miniSvg(`<rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 4V2M16 4V2M3 9h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`); }
 function barsSvg() { return miniSvg(`<path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`); }
 function settingsSvg() { return miniSvg(`<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.8"/>`); }
@@ -1620,46 +1676,22 @@ document.addEventListener('click', async (event) => {
     }
   }
   if (action === 'clear-sleep-data') {
-    const first = state.settings.language === 'ru'
-      ? 'Удалить всю информацию о сне? План и сейвы распорядка останутся.'
-      : state.settings.language === 'de'
-        ? 'Alle Schlafdaten löschen? Plan und Routine-Saves bleiben.'
-        : 'Delete all sleep data? Plan and routine saves will stay.';
-    const second = state.settings.language === 'ru'
-      ? 'Подтвердите ещё раз: вы понимаете, что записи сна будут удалены.'
-      : state.settings.language === 'de'
-        ? 'Bitte noch einmal bestätigen: Schlafprotokolle werden gelöscht.'
-        : 'Confirm again: you understand sleep logs will be deleted.';
-    if (window.confirm(first) && window.confirm(second)) {
-      state.sessions = [];
-      state.sleepStart = 0;
-      localStorage.removeItem(LS.sleepStart);
-      save(LS.sessions, state.sessions);
-      render();
-    }
+    askConfirm(
+      state.settings.language === 'ru' ? 'Удалить данные о сне?' : state.settings.language === 'de' ? 'Schlafdaten löschen?' : 'Delete sleep data?',
+      state.settings.language === 'ru' ? 'Все записи сна будут удалены. План и шаблоны дня останутся.' : state.settings.language === 'de' ? 'Alle Schlafprotokolle werden gelöscht. Plan und Vorlagen bleiben erhalten.' : 'All sleep records will be deleted. Your plan and templates will stay.',
+      state.settings.language === 'ru' ? 'Удалить' : state.settings.language === 'de' ? 'Löschen' : 'Delete',
+      'confirmed-clear-sleep',
+      true
+    );
   }
   if (action === 'clear-cache') {
-    const first = state.settings.language === 'ru'
-      ? 'Сбросить кэш приложения? Записи сна и сейвы останутся.'
-      : state.settings.language === 'de'
-        ? 'App-Cache leeren? Schlafdaten und Saves bleiben.'
-        : 'Reset the app cache? Sleep logs and saves will stay.';
-    const second = state.settings.language === 'ru'
-      ? 'Подтвердите ещё раз: вы понимаете, что страница перезагрузится.'
-      : state.settings.language === 'de'
-        ? 'Bitte noch einmal bestätigen: Die Seite wird neu geladen.'
-        : 'Confirm again: you understand the page will reload.';
-    if (window.confirm(first) && window.confirm(second)) {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((reg) => reg.unregister()));
-      }
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((key) => caches.delete(key)));
-      }
-      location.reload();
-    }
+    askConfirm(
+      state.settings.language === 'ru' ? 'Сбросить кэш?' : state.settings.language === 'de' ? 'Cache zurücksetzen?' : 'Reset cache?',
+      state.settings.language === 'ru' ? 'Кэш приложения будет очищен, страница перезагрузится. Записи сна и шаблоны останутся.' : state.settings.language === 'de' ? 'Der App-Cache wird geleert und die Seite neu geladen. Schlafdaten und Vorlagen bleiben.' : 'The app cache will be cleared and the page will reload. Sleep logs and templates will stay.',
+      state.settings.language === 'ru' ? 'Сбросить' : state.settings.language === 'de' ? 'Zurücksetzen' : 'Reset',
+      'confirmed-clear-cache',
+      false
+    );
   }
   if (action === 'plan-jump') {
     if (window.scrollY < 120) {
@@ -1713,6 +1745,38 @@ document.addEventListener('click', async (event) => {
     localStorage.removeItem(LS.onboarding);
     render();
   }
+  if (action === 'cancel-confirm') {
+    state.confirm = null;
+    render();
+    return;
+  }
+  if (action === 'do-confirm' && state.confirm) {
+    const pendingAction = state.confirm.action;
+    state.confirm = null;
+    if (pendingAction === 'confirmed-clear-sleep') {
+      state.sessions = [];
+      state.sleepStart = 0;
+      localStorage.removeItem(LS.sleepStart);
+      save(LS.sessions, state.sessions);
+      render();
+    } else if (pendingAction === 'confirmed-clear-cache') {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((reg) => reg.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+      location.reload();
+    } else if (pendingAction === 'confirmed-delete-session') {
+      state.sessions = state.sessions.filter((s) => !state.editor.sourceIds.includes(s.id));
+      save(LS.sessions, state.sessions);
+      state.editor = null;
+      render();
+    }
+    return;
+  }
   if (action === 'close-editor') {
     state.editor = null;
     render();
@@ -1723,12 +1787,13 @@ document.addEventListener('click', async (event) => {
       : state.settings.language === 'de'
         ? 'Diesen Schlafabschnitt löschen?'
         : 'Delete this sleep interval?';
-    if (window.confirm(message)) {
-      state.sessions = state.sessions.filter((s) => !state.editor.sourceIds.includes(s.id));
-      save(LS.sessions, state.sessions);
-      state.editor = null;
-      render();
-    }
+    askConfirm(
+      message,
+      state.settings.language === 'ru' ? 'Это действие нельзя отменить.' : state.settings.language === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This action cannot be undone.',
+      state.settings.language === 'ru' ? 'Удалить' : state.settings.language === 'de' ? 'Löschen' : 'Delete',
+      'confirmed-delete-session',
+      true
+    );
   }
   if (target.dataset.editPlan) {
     const block = generateSchedule().find((item) => item.id === target.dataset.editPlan);
@@ -1818,6 +1883,12 @@ document.addEventListener('submit', (event) => {
 
 document.addEventListener('change', (event) => {
   const target = event.target;
+  if (target.dataset.sound) {
+    state.settings.sound = target.dataset.sound;
+    save(LS.settings, state.settings);
+    render();
+    return;
+  }
   if (target.dataset.action === 'sound-select') {
     state.settings.sound = target.value;
     save(LS.settings, state.settings);

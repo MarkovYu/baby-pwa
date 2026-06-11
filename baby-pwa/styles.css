@@ -1094,14 +1094,11 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 }
 
 .sleep-timer.is-awake {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--muted);
-  background: var(--bg);
-  border: 1.5px solid var(--line);
-  border-radius: 999px;
-  padding: 4px 14px;
-  line-height: 1.6;
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: -.02em;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Fix block-title truncation ── */
@@ -1258,3 +1255,268 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   opacity: .35;
   cursor: not-allowed;
 }
+
+/* ══════════════════════════════════════════
+   ONBOARDING v2 — stable fixed layout
+══════════════════════════════════════════ */
+.ob-shell {
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+
+.ob-header {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.ob-logo {
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: grid; place-items: center;
+}
+
+.ob-card {
+  width: 100%;
+  max-width: 420px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  padding: 28px 24px 24px;
+  box-shadow: var(--shadow-card);
+}
+
+/* middle fills available space so actions always pin to bottom */
+.ob-middle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.ob-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+
+.ob-body {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0 0 20px;
+}
+
+.ob-points {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ob-point {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.ob-point::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex: 0 0 auto;
+  margin-top: 6px;
+}
+
+/* Stepper inside onboarding */
+.ob-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.ob-step-btn {
+  width: 52px; height: 52px;
+  border-radius: 16px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 24px;
+  font-weight: 300;
+  display: grid; place-items: center;
+  transition: transform .12s ease;
+}
+
+.ob-step-btn:active { transform: scale(.9); }
+
+.ob-step-val {
+  min-width: 110px;
+  text-align: center;
+  font-size: 36px;
+  font-weight: 300;
+  letter-spacing: -.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-step-val span {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-top: -2px;
+}
+
+/* Preview card */
+.ob-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.ob-preview-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--surface);
+  font-size: 15px;
+}
+
+.ob-preview-row span { color: var(--muted); font-weight: 500; }
+.ob-preview-row strong { font-weight: 700; }
+
+.ob-disclaimer {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 14px 0 0;
+  text-align: center;
+}
+
+/* Actions area — fixed at bottom of card */
+.ob-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.ob-actions .primary,
+.ob-actions .secondary {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.ob-secondary {
+  background: transparent !important;
+}
+
+/* Progress dots */
+.ob-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.ob-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--line);
+  transition: all .2s ease;
+}
+
+.ob-dot.done {
+  background: var(--primary-mid);
+}
+
+.ob-dot.active {
+  width: 20px;
+  border-radius: 3px;
+  background: var(--primary);
+}
+
+/* ══════════════════════════════════════════
+   NOISE CARD v2 — chip selector
+══════════════════════════════════════════ */
+.noise-card-v2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sound-chips {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.sound-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 4px;
+  border-radius: 14px;
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  transition: background .14s, color .14s, border-color .14s;
+}
+
+.sound-chip .svg-icon,
+.sound-chip img { width: 20px; height: 20px; flex: 0 0 auto; }
+
+[data-theme="night"] .sound-chip img {
+  filter: invert(0.7) brightness(1.4);
+}
+
+.sound-chip.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+[data-theme="night"] .sound-chip.active img {
+  filter: invert(1) brightness(2) saturate(0.4);
+}
+
+.sound-chip:active { transform: scale(.93); }
