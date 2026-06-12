@@ -82,6 +82,8 @@ const labels = {
     saveChanges: 'Сохранить',
     addSleep: 'Добавить сон',
     tapToAdd: 'Нажмите, чтобы добавить сон',
+    timeFormat: 'Формат времени',
+    whoDisclaimer: 'Рекомендации составлены на основе материалов ВОЗ и не являются медицинской рекомендацией. При вопросах о здоровье малыша обращайтесь к врачу.',
   },
   en: {
     now: 'Now',
@@ -155,6 +157,8 @@ const labels = {
     saveChanges: 'Save',
     addSleep: 'Add sleep',
     tapToAdd: 'Tap to add sleep',
+    timeFormat: 'Time format',
+    whoDisclaimer: 'Recommendations are based on WHO materials and are not medical advice. For questions about your baby’s health, please consult a doctor.',
   },
   de: {
     now: 'Jetzt',
@@ -228,6 +232,8 @@ const labels = {
     saveChanges: 'Sichern',
     addSleep: 'Schlaf hinzufügen',
     tapToAdd: 'Tippen, um Schlaf hinzuzufügen',
+    timeFormat: 'Zeitformat',
+    whoDisclaimer: 'Die Empfehlungen basieren auf WHO-Materialien und sind keine medizinische Beratung. Bei Fragen zur Gesundheit deines Babys wende dich an eine Ärztin oder einen Arzt.',
   }
 };
 
@@ -268,13 +274,14 @@ const defaultSettings = {
   ageMonths: 5,
   wakeHour: 7,
   scheduleMode: 'age',
+  timeFormat: '24',
 };
 
 const initialTab = new URLSearchParams(location.search).get('tab');
 
 const state = {
   tab: ['now', 'plan', 'stats', 'settings'].includes(initialTab) ? initialTab : 'now',
-  settings: load(LS.settings, defaultSettings),
+  settings: { ...defaultSettings, ...load(LS.settings, {}) },
   sessions: load(LS.sessions, []),
   customSchedule: load(LS.customSchedule, null),
   sleepStart: Number(localStorage.getItem(LS.sleepStart) || 0),
@@ -326,6 +333,18 @@ function normalizeEnd(end, start) {
 }
 
 function clock(minute) {
+  const value = ((Math.round(minute) % DAY) + DAY) % DAY;
+  const h = Math.floor(value / 60);
+  const m = value % 60;
+  if (state.settings.timeFormat === '12') {
+    const suffix = h < 12 ? 'AM' : 'PM';
+    return `${h % 12 || 12}:${pad(m)} ${suffix}`;
+  }
+  return `${pad(h)}:${pad(m)}`;
+}
+
+// Always HH:MM — required for <input type="time"> values
+function clock24(minute) {
   const value = ((Math.round(minute) % DAY) + DAY) % DAY;
   return `${pad(Math.floor(value / 60))}:${pad(value % 60)}`;
 }
@@ -1201,7 +1220,7 @@ function nowScreen() {
   return `
     <div class="top">
       <div class="date">${time.toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
-      <div class="clock">${pad(time.getHours())}:${pad(time.getMinutes())}</div>
+      <div class="clock">${clockFromMs(state.tick)}</div>
     </div>
     ${(() => {
       const blockLen = Math.max(1, current.end - current.start);
@@ -1445,6 +1464,8 @@ function settingsScreen() {
     <section class="card settings-grid">
       <h2>${t('theme')}</h2>
       <div class="theme-line">${segments('theme', [['day', t('day')], ['night', t('night')]])}</div>
+      <h2>${t('timeFormat')}</h2>
+      <div class="theme-line">${segments('timeFormat', [['24', '24 h'], ['12', 'AM/PM']])}</div>
       <h2>${t('language')}</h2>
       ${segments('language', [['en', '🇬🇧'], ['de', '🇩🇪'], ['ru', '🇷🇺']])}
     </section>
@@ -1463,6 +1484,7 @@ function settingsScreen() {
       <div class="muted">${state.settings.language === 'ru' ? 'Обновляет файлы приложения. Записи сна и сейвы не удаляются.' : state.settings.language === 'de' ? 'Aktualisiert App-Dateien. Schlafdaten und Saves bleiben.' : 'Refreshes app files. Sleep logs and saves stay.'}</div>
       <button class="danger" data-action="clear-cache">${state.settings.language === 'ru' ? 'Сбросить кэш' : state.settings.language === 'de' ? 'Cache leeren' : 'Reset cache'}</button>
     </section>
+    <p class="settings-footnote">${t('whoDisclaimer')}</p>
   `;
 }
 
@@ -1495,8 +1517,8 @@ function editorModal() {
           </select></label>
         `}
         <div class="modal-grid">
-          <label>${t('startTime')}<input name="start" type="time" step="300" required value="${clock(e.start)}" /></label>
-          <label>${t('endTime')}<input name="end" type="time" step="300" required value="${clock(e.end)}" /></label>
+          <label>${t('startTime')}<input name="start" type="time" step="300" required value="${clock24(e.start)}" /></label>
+          <label>${t('endTime')}<input name="end" type="time" step="300" required value="${clock24(e.end)}" /></label>
         </div>
         <div class="modal-actions">
           <button type="button" class="secondary" data-action="close-editor">${t('cancel')}</button>
@@ -1549,7 +1571,7 @@ function tabButton(tab, svg, label) {
 
 function clockFromMs(ms) {
   const date = new Date(ms);
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return clock(date.getHours() * 60 + date.getMinutes());
 }
 
 function locale() {

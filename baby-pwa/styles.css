@@ -1039,6 +1039,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   to { transform: translateY(0); opacity: 1; }
 }
 
+.settings-footnote {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+  margin: 6px 0 4px;
+  padding: 0 18px;
+}
+
 /* ── Sleep pop animation ── */
 .sleep-pop .fab { animation: sleepPulse .32s ease-out; }
 

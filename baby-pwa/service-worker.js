@@ -1,4 +1,4 @@
-const CACHE = 'baby-rhythm-pwa-v23';
+const CACHE = 'baby-rhythm-pwa-v24';
 const ASSETS = [
   './',
   './index.html',
