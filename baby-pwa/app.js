@@ -84,6 +84,15 @@ const labels = {
     tapToAdd: 'Нажмите, чтобы добавить сон',
     timeFormat: 'Формат времени',
     whoDisclaimer: 'Рекомендации составлены на основе материалов ВОЗ и не являются медицинской рекомендацией. При вопросах о здоровье малыша обращайтесь к врачу.',
+    sync: 'Синхронизация',
+    syncHelper: 'Обменяйтесь записями сна между двумя телефонами через QR-код. Данные не покидают ваши устройства.',
+    showQr: 'Показать QR',
+    scanQr: 'Сканировать QR',
+    showHint: 'Отсканируйте этот код вторым телефоном. Чтобы синхронизировать оба, потом покажите QR с того телефона этому.',
+    scanHint: 'Наведите камеру на QR-код второго телефона.',
+    syncSame: 'Данные уже совпадают',
+    invalidQr: 'Не удалось прочитать QR-код',
+    cameraError: 'Нет доступа к камере',
   },
   en: {
     now: 'Now',
@@ -159,6 +168,15 @@ const labels = {
     tapToAdd: 'Tap to add sleep',
     timeFormat: 'Time format',
     whoDisclaimer: 'Recommendations are based on WHO materials and are not medical advice. For questions about your baby’s health, please consult a doctor.',
+    sync: 'Sync',
+    syncHelper: 'Share sleep records between two phones via QR code. Data never leaves your devices.',
+    showQr: 'Show QR',
+    scanQr: 'Scan QR',
+    showHint: 'Scan this code with the other phone. To sync both ways, then show that phone’s QR to this one.',
+    scanHint: 'Point the camera at the other phone’s QR code.',
+    syncSame: 'Already in sync',
+    invalidQr: 'Could not read the QR code',
+    cameraError: 'Camera access denied',
   },
   de: {
     now: 'Jetzt',
@@ -234,6 +252,15 @@ const labels = {
     tapToAdd: 'Tippen, um Schlaf hinzuzufügen',
     timeFormat: 'Zeitformat',
     whoDisclaimer: 'Die Empfehlungen basieren auf WHO-Materialien und sind keine medizinische Beratung. Bei Fragen zur Gesundheit deines Babys wende dich an eine Ärztin oder einen Arzt.',
+    sync: 'Synchronisierung',
+    syncHelper: 'Tauscht Schlafdaten zwischen zwei Handys per QR-Code aus. Die Daten verlassen eure Geräte nicht.',
+    showQr: 'QR zeigen',
+    scanQr: 'QR scannen',
+    showHint: 'Scanne diesen Code mit dem anderen Handy. Für beide Richtungen danach dessen QR mit diesem Handy scannen.',
+    scanHint: 'Richte die Kamera auf den QR-Code des anderen Handys.',
+    syncSame: 'Bereits synchron',
+    invalidQr: 'QR-Code konnte nicht gelesen werden',
+    cameraError: 'Kein Kamerazugriff',
   }
 };
 
@@ -297,6 +324,7 @@ const state = {
   installPrompt: null,
   rebuilding: false,
   confirm: null, // { title, body, action, danger }
+  sync: null, // null | 'show' | 'scan'
 };
 
 function load(key, fallback) {
@@ -719,6 +747,98 @@ function mergeSessionSegments(items) {
     }
   }
   return merged;
+}
+
+// ── QR sync: payload + merge ──
+// Sessions travel as [startMinute, endMinute] (minutes since epoch) to keep the QR small.
+const SYNC_DAYS = 14;
+
+function syncPayload() {
+  const cutoff = Date.now() - SYNC_DAYS * 86400000;
+  const sessions = state.sessions
+    .filter((s) => s.end > cutoff)
+    .map((s) => [Math.round(s.start / 60000), Math.round(s.end / 60000)]);
+  return JSON.stringify({
+    v: 1,
+    s: sessions,
+    a: state.sleepStart ? Math.round(state.sleepStart / 60000) : 0,
+  });
+}
+
+function applySyncPayload(text) {
+  let data;
+  try { data = JSON.parse(text); } catch { return null; }
+  if (!data || data.v !== 1 || !Array.isArray(data.s)) return null;
+  const imported = data.s
+    .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) && p[1] > p[0])
+    .map((p) => ({ id: `sleep-${p[0] * 60000}`, start: p[0] * 60000, end: p[1] * 60000 }));
+  const totalBefore = state.sessions.reduce((sum, s) => sum + (s.end - s.start), 0);
+  state.sessions = mergePersistedSessions([...state.sessions, ...imported]);
+  save(LS.sessions, state.sessions);
+  const totalAfter = state.sessions.reduce((sum, s) => sum + (s.end - s.start), 0);
+
+  // Adopt the other device's running timer unless this sleep was already closed here.
+  const importedActive = data.a ? data.a * 60000 : 0;
+  if (importedActive) {
+    const closedHere = state.sessions.some((s) => s.start <= importedActive && s.end > importedActive);
+    if (!closedHere && (!state.sleepStart || importedActive < state.sleepStart)) {
+      state.sleepStart = importedActive;
+      localStorage.setItem(LS.sleepStart, String(state.sleepStart));
+    }
+  }
+  return { deltaMs: totalAfter - totalBefore };
+}
+
+function syncDoneMessage(result) {
+  if (result.deltaMs <= 0) return t('syncSame');
+  const value = duration(result.deltaMs);
+  if (state.settings.language === 'ru') return `Синхронизировано: +${value} сна`;
+  if (state.settings.language === 'de') return `Synchronisiert: +${value} Schlaf`;
+  return `Synced: +${value} of sleep`;
+}
+
+const syncScan = { stream: null, raf: 0 };
+
+async function startSyncScan() {
+  const video = document.getElementById('syncVideo');
+  if (!video || !window.jsQR) return;
+  try {
+    syncScan.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  } catch {
+    state.sync = null;
+    toast(t('cameraError'));
+    render();
+    return;
+  }
+  video.srcObject = syncScan.stream;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const tick = () => {
+    if (state.sync !== 'scan') return;
+    if (video.readyState >= 2 && video.videoWidth) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height);
+      if (code && code.data) {
+        const result = applySyncPayload(code.data);
+        stopSyncScan();
+        state.sync = null;
+        toast(result ? syncDoneMessage(result) : t('invalidQr'));
+        render();
+        return;
+      }
+    }
+    syncScan.raf = requestAnimationFrame(tick);
+  };
+  syncScan.raf = requestAnimationFrame(tick);
+}
+
+function stopSyncScan() {
+  cancelAnimationFrame(syncScan.raf);
+  if (syncScan.stream) syncScan.stream.getTracks().forEach((track) => track.stop());
+  syncScan.stream = null;
 }
 
 function mergePersistedSessions(items) {
@@ -1169,9 +1289,38 @@ function renderApp() {
     ${state.tab === 'now' && (state.sleepStart || state.noisePlaying) ? effects() : ''}
     ${nav()}
     ${state.editor ? editorModal() : ''}
+    ${state.sync ? syncModal() : ''}
     ${state.rebuilding ? rebuildingOverlay() : ''}
     ${state.confirm ? confirmModal() : ''}
   `;
+}
+
+function syncModal() {
+  if (state.sync === 'show') {
+    let qrSvg = `<div class="muted">QR error</div>`;
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(syncPayload());
+      qr.make();
+      qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2 });
+    } catch { /* payload too large or lib missing — show fallback text */ }
+    return `<div class="modal-backdrop" data-action="close-sync">
+      <div class="modal-card sync-card">
+        <h2>${t('sync')}</h2>
+        <div class="qr-box">${qrSvg}</div>
+        <p class="sync-hint">${t('showHint')}</p>
+        <button class="secondary compact" data-action="close-sync">${t('cancel')}</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="modal-backdrop" data-action="close-sync">
+    <div class="modal-card sync-card">
+      <h2>${t('scanQr')}</h2>
+      <video id="syncVideo" class="sync-video" autoplay playsinline muted></video>
+      <p class="sync-hint">${t('scanHint')}</p>
+      <button class="secondary compact" data-action="close-sync">${t('cancel')}</button>
+    </div>
+  </div>`;
 }
 
 function confirmModal() {
@@ -1469,6 +1618,14 @@ function settingsScreen() {
       <h2>${t('language')}</h2>
       ${segments('language', [['en', '🇬🇧'], ['de', '🇩🇪'], ['ru', '🇷🇺']])}
     </section>
+    <section class="card settings-grid">
+      <h2>${t('sync')}</h2>
+      <div class="muted">${t('syncHelper')}</div>
+      <div class="sync-buttons">
+        <button class="primary compact" data-action="sync-show">${t('showQr')}</button>
+        <button class="secondary compact" data-action="sync-scan">${t('scanQr')}</button>
+      </div>
+    </section>
     <section class="card settings-grid danger-card">
       <h2>${state.settings.language === 'ru' ? 'Веб-приложение' : state.settings.language === 'de' ? 'Web-App' : 'Web app'}</h2>
       <div class="muted">${state.settings.language === 'ru' ? 'Установить сайт на экран телефона как приложение.' : state.settings.language === 'de' ? 'Diese Website wie eine App installieren.' : 'Install this site on your phone like an app.'}</div>
@@ -1636,7 +1793,7 @@ document.addEventListener('click', async (event) => {
   // was clicked (or a real button) — otherwise clicks on inputs inside the modal
   // bubble up and close the editor.
   const action = target.dataset.action;
-  const backdropAction = action === 'close-editor' || action === 'cancel-confirm';
+  const backdropAction = action === 'close-editor' || action === 'cancel-confirm' || action === 'close-sync';
   if (backdropAction && target.tagName !== 'BUTTON' && event.target !== target) return;
   if (target.dataset.lang) {
     state.settings.language = target.dataset.lang;
@@ -1849,6 +2006,20 @@ document.addEventListener('click', async (event) => {
     state.editor = null;
     render();
   }
+  if (action === 'sync-show') {
+    state.sync = 'show';
+    render();
+  }
+  if (action === 'sync-scan') {
+    state.sync = 'scan';
+    render();
+    startSyncScan();
+  }
+  if (action === 'close-sync') {
+    stopSyncScan();
+    state.sync = null;
+    render();
+  }
   if (action === 'delete-sleep-entry' && state.editor?.mode === 'sleep' && state.editor.sourceIds?.length) {
     const message = state.settings.language === 'ru'
       ? 'Удалить этот интервал сна?'
@@ -1986,6 +2157,8 @@ window.addEventListener('beforeinstallprompt', (event) => {
 
 setInterval(() => {
   state.tick = Date.now();
+  // Re-rendering would wipe open modals (typed input, camera stream) — skip the tick.
+  if (state.editor || state.confirm || state.sync) return;
   if (localStorage.getItem(LS.onboarding) === 'true') render();
 }, 30000);
 
