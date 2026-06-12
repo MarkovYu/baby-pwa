@@ -144,17 +144,87 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .schedule-card.calm::before { color: #8a6fd4; }
 
 .schedule-card.current {
-  --st: 19px;
+  --st: 20px;
+  padding: 15px 16px 14px;
+  gap: 10px;
 }
 
 .schedule-card.current::before {
   opacity: 1;
 }
 
-.schedule-card.next-card {
-  --st: 16px;
-  opacity: .82;
+.schedule-card.current .icon-dot {
+  width: 40px; height: 40px;
+  border-radius: 13px;
 }
+
+.schedule-card.current .icon-dot .svg-icon { width: 21px; height: 21px; }
+
+.schedule-card.next-card {
+  --st: 15px;
+  min-height: 0;
+  padding: 11px 14px;
+  opacity: .88;
+}
+
+.next-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.next-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.next-card .block-title {
+  -webkit-line-clamp: 1;
+}
+
+/* kicker row with meta badge */
+.sc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 22px;
+}
+
+.sc-meta {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, transparent);
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* progress through the current block */
+.block-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  overflow: hidden;
+}
+
+.block-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width .4s ease;
+}
+
+.schedule-card.sleep .block-progress span  { background: #5a9fd6; }
+.schedule-card.feed .block-progress span   { background: #e6a817; }
+.schedule-card.active .block-progress span { background: #4ead6e; }
+.schedule-card.calm .block-progress span   { background: #8a6fd4; }
 
 .schedule-card.sleep  { background: linear-gradient(135deg, var(--sleep), var(--surface) 70%); }
 .schedule-card.feed   { background: linear-gradient(135deg, var(--feed), var(--surface) 70%); }
@@ -256,12 +326,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .next-card .icon-dot {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  opacity: .7;
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  opacity: .75;
 }
 
-.next-card .block-title { color: var(--muted); }
+.next-card .block-title { color: var(--ink); opacity: .75; }
+.next-card .kicker { font-size: 9px; }
 
 .svg-icon {
   width: 17px; height: 17px;
@@ -538,22 +609,28 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.col-head {
+.timeline-head {
   position: sticky;
-  top: 0; z-index: 5;
+  top: 8px;
+  z-index: 7;
+  display: grid;
+  grid-template-columns: 54px 1fr 1fr;
+  align-items: center;
   height: 40px;
-  background: var(--surface);
-  display: grid; place-items: center;
+  margin-bottom: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: var(--muted);
   font-weight: 700;
   font-size: 11px;
   letter-spacing: .06em;
   text-transform: uppercase;
-  border-bottom: 1px solid var(--line);
+  text-align: center;
 }
-
-.plan-head { grid-column: 2; }
-.actual-head { grid-column: 3; }
 
 .plan-block, .actual-block {
   position: absolute;
@@ -573,7 +650,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .actual-tap-zone {
   position: absolute;
-  top: 40px; bottom: 0;
+  top: 0; bottom: 0;
   left: calc(54px + (100% - 54px) / 2);
   width: calc((100% - 54px) / 2);
   background: transparent;
@@ -609,6 +686,33 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .plan-block .svg-icon,
 .actual-block .svg-icon { width: 13px; height: 13px; flex: 0 0 auto; }
+
+.plan-subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  margin: -14px 0 14px;
+  text-transform: capitalize;
+}
+
+.actual-empty-hint {
+  position: absolute;
+  left: calc(54px + (100% - 54px) / 2 + 6px);
+  width: calc((100% - 62px) / 2 - 8px);
+  min-height: 64px;
+  border: 1.5px dashed color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 8px;
+  pointer-events: none;
+  z-index: 1;
+}
 
 /* ── Week chips ── */
 .week {
@@ -1209,6 +1313,17 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   color: var(--muted);
 }
 
+[data-theme="night"] .day-chip.today:not(.active) {
+  border-color: var(--primary-mid);
+  color: var(--primary);
+}
+
+[data-theme="night"] .day-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 [data-theme="night"] .plan-block {
   border-color: rgba(255,255,255,.08);
   color: var(--ink);
@@ -1253,8 +1368,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: var(--surface);
 }
 
-[data-theme="night"] .col-head {
-  background: var(--surface);
+[data-theme="night"] .timeline-head {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
 }
 
 /* ── Slot icon buttons ── */
@@ -1547,6 +1662,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 [data-theme="night"] .insight-row img.svg-icon {
   filter: invert(1) brightness(1.6) saturate(0.2);
+}
+
+[data-theme="night"] .plan-block img.svg-icon,
+[data-theme="night"] .actual-block img.svg-icon {
+  filter: invert(1) brightness(1.8) saturate(0.3);
 }
 
 .summary {

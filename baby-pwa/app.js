@@ -81,6 +81,7 @@ const labels = {
     cancel: 'Отмена',
     saveChanges: 'Сохранить',
     addSleep: 'Добавить сон',
+    tapToAdd: 'Нажмите, чтобы добавить сон',
   },
   en: {
     now: 'Now',
@@ -153,6 +154,7 @@ const labels = {
     cancel: 'Cancel',
     saveChanges: 'Save',
     addSleep: 'Add sleep',
+    tapToAdd: 'Tap to add sleep',
   },
   de: {
     now: 'Jetzt',
@@ -225,6 +227,7 @@ const labels = {
     cancel: 'Abbrechen',
     saveChanges: 'Sichern',
     addSleep: 'Schlaf hinzufügen',
+    tapToAdd: 'Tippen, um Schlaf hinzuzufügen',
   }
 };
 
@@ -341,6 +344,13 @@ function timeUntilLabel(ms) {
   if (state.settings.language === 'ru') return `Через ${value}`;
   if (state.settings.language === 'de') return `In ${value}`;
   return `In ${value}`;
+}
+
+function remainingLabel(ms) {
+  const value = duration(ms);
+  if (state.settings.language === 'ru') return `ещё ${value}`;
+  if (state.settings.language === 'de') return `noch ${value}`;
+  return `${value} left`;
 }
 
 function nowMinute(date = new Date()) {
@@ -1007,14 +1017,14 @@ function overlapPercent(schedule, sessions, dayStart) {
 
 function icon(type) {
   if (type === 'sleep') return miniSvg(`<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" fill="currentColor" opacity=".9"/>`);
-  if (type === 'feed') return miniSvg(`<path d="M10 3h4v3l-1 1v2.2l4 4V20a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6.8l4-4V7l-1-1V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15h6M9 18h6M10 6h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
-  if (type === 'active') return miniSvg(`<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M6.3 6.3 4.2 4.2M17.7 6.3l2.1-2.1M6.3 17.7l-2.1 2.1M17.7 17.7l2.1 2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
+  if (type === 'feed') return fileIcon('bottle');
+  if (type === 'active') return fileIcon('toys');
   return calmSvg();
 }
 
 function blockIcon(block) {
   const text = `${block.rawEventType || ''} ${block.title || ''} ${block.labelKey || ''}`.toLowerCase();
-  if (block.type === 'active' && (text.includes('прогул') || text.includes('улиц'))) return miniSvg(`<path d="M8 6h8a5 5 0 0 1-5 5H7a5 5 0 0 1 5-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 11h10l-2 5H9l-2-5ZM8 20h.01M16 20h.01M4 6c0-2 1-3 3-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`);
+  if (block.type === 'active' && (text.includes('прогул') || text.includes('улиц') || block.labelKey === 'walk')) return fileIcon('stroller');
   if (block.labelKey === 'bedtime_routine' || block.labelKey === 'wind_down' || block.labelKey === 'settling') return bedtimeSvg();
   if (block.labelKey === 'quiet_play') return quietSvg();
   return icon(block.type);
@@ -1193,8 +1203,14 @@ function nowScreen() {
       <div class="date">${time.toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
       <div class="clock">${pad(time.getHours())}:${pad(time.getMinutes())}</div>
     </div>
-    ${scheduleCard(current, t('now'), true)}
-    ${scheduleCard(next, timeUntilLabel(Math.max(0, (next.start > minute ? next.start : next.start + DAY) - minute) * 60000), false)}
+    ${(() => {
+      const blockLen = Math.max(1, current.end - current.start);
+      const elapsed = Math.min(Math.max(minute - current.start, 0), blockLen);
+      const progress = Math.round((elapsed / blockLen) * 100);
+      const remainMs = Math.max(0, current.end - minute) * 60000;
+      return scheduleCard(current, t('now'), true, { meta: remainingLabel(remainMs), progress });
+    })()}
+    ${scheduleCard(next, t('next'), false)}
     <section class="card sleep-state">
       <div>
         <div class="kicker">${t('currentSleep')}</div>
@@ -1229,15 +1245,35 @@ function nowScreen() {
   `;
 }
 
-function scheduleCard(block, label, featured) {
+function scheduleCard(block, label, featured, extra = {}) {
+  if (!featured) {
+    return `
+    <section class="card schedule-card next-card ${block.type}">
+      <div class="next-row">
+        <div class="icon-dot">${blockIcon(block)}</div>
+        <div class="next-text">
+          <div class="kicker">${label}</div>
+          <div class="block-title">${escapeHtml(titleFor(block))}</div>
+        </div>
+        <div class="block-time">${clock(block.start)}–${clock(block.end)}</div>
+      </div>
+    </section>
+  `;
+  }
+  const meta = extra.meta ? `<div class="sc-meta">${extra.meta}</div>` : '';
+  const progress = extra.progress === undefined ? '' : `<div class="block-progress"><span style="width:${extra.progress}%"></span></div>`;
   return `
-    <section class="card schedule-card ${featured ? 'current' : 'next-card'} ${block.type}">
-      <div class="kicker">${label}</div>
+    <section class="card schedule-card current ${block.type}">
+      <div class="sc-top">
+        <div class="kicker">${label}</div>
+        ${meta}
+      </div>
       <div class="title-row">
         <div class="icon-dot">${blockIcon(block)}</div>
         <div class="block-title">${escapeHtml(titleFor(block))}</div>
         <div class="block-time">${clock(block.start)}–${clock(block.end)}</div>
       </div>
+      ${progress}
     </section>
   `;
 }
@@ -1270,18 +1306,24 @@ function planScreen() {
   const currentLine = state.planDay === 0 && minute >= state.settings.wakeHour * 60 && minute <= state.settings.wakeHour * 60 + DAY
     ? `<div class="current-time-line" style="top:${currentTop}px"><span>${clock(minute)}</span></div>`
     : '';
+  const emptyHint = sessions.length ? '' : `<div class="actual-empty-hint" style="top:${44 + 90 * PLAN_PX}px">+ ${t('tapToAdd')}</div>`;
+  const dayDate = dayStartDate(state.planDay);
   return `
     <h1 class="screen-title">${t('plan')}</h1>
+    <div class="plan-subtitle">${dayDate.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     <div class="week">${weekChips()}</div>
+    <div class="timeline-head">
+      <div></div>
+      <div>${t('plan')}</div>
+      <div>${t('actual')}</div>
+    </div>
     <section class="timeline" style="height:${timelineHeight}px">
-      <div class="col-head plan-head">${t('plan')}</div>
-      <div class="col-head actual-head">${t('actual')}</div>
       <button class="actual-tap-zone" data-add-sleep-zone aria-label="${t('addSleep')}"></button>
       ${hours.map((h) => {
         const top = 44 + (h - state.settings.wakeHour * 60) * PLAN_PX;
         return `<div class="time-label" style="top:${top - 8}px">${clock(h)}</div><div class="hour-line" style="top:${top}px"></div>`;
       }).join('')}
-      ${blocks}${actual}${currentLine}
+      ${blocks}${actual}${emptyHint}${currentLine}
     </section>
     <button class="plan-jump ${state.planAtTop ? 'down' : 'up'}" data-action="plan-jump" aria-label="${state.planAtTop ? t('now') : t('plan')}">${chevronSvg()}</button>
   `;
@@ -1551,12 +1593,7 @@ function miniSvg(content, viewBox = '0 0 24 24') {
   return `<svg class="svg-icon" viewBox="${viewBox}" fill="none" aria-hidden="true">${content}</svg>`;
 }
 function fileIcon(name) { return `<img class="svg-icon" src="./icons/${name}.svg" alt="" loading="eager" />`; }
-function sleepMiniSvg() { return miniSvg(`<path d="M19.8 14.1c-1.1 4-4.8 6.9-9.1 6.9A9.7 9.7 0 0 1 8.2 2c.7-.2 1.1.6.7 1.1A7 7 0 0 0 14.2 14c1.7 0 3.2-.6 4.4-1.6.6-.5 1.4.2 1.2 1.7Z" fill="currentColor"/>`); }
 function calmSvg() { return miniSvg(`<path d="M12 21C12 21 4 15.5 4 10a8 8 0 0 1 16 0c0 5.5-8 11-8 11Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`); }
-function bottleSvg() { return miniSvg(`<path d="M10 3h4v3l-1 1v2.2l4 4V20a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-6.8l4-4V7l-1-1V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15h6M9 18h6M10 6h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
-function toysSvg() { return miniSvg(`<path d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6v3H6v-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 19c2.6 1.5 5.4 1.5 8 0M9 10h.1M15 10h.1M10 13c1.2 1 2.8 1 4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
-function strollerSvg() { return miniSvg(`<path d="M8 6h8a5 5 0 0 1-5 5H7a5 5 0 0 1 5-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 11h10l-2 5H9l-2-5ZM8 20h.1M16 20h.1M4 6c0-2 1-3 3-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`); }
-function soundSvg() { return miniSvg(`<path d="M4 10v4h3l4 4V6l-4 4H4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 9c.8.8 1.2 1.8 1.2 3S15.8 14.2 15 15M18 7c1.4 1.4 2 3 2 5s-.6 3.6-2 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`); }
 function bulbSvg() { return fileIcon('bulb'); }
 function planSvg() { return miniSvg(`<rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 4V2M16 4V2M3 9h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`); }
 function barsSvg() { return miniSvg(`<path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`); }
