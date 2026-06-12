@@ -54,7 +54,11 @@ html, body {
 }
 
 button, input, select { font: inherit; }
-button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 /* ── App shell ── */
 .app {
@@ -629,6 +633,16 @@ button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   background: var(--primary);
   color: white;
   border-color: var(--primary);
+}
+
+.day-chip.today:not(.active) {
+  border-color: var(--primary-mid);
+  color: var(--primary);
+}
+
+.day-chip:disabled {
+  opacity: .35;
+  cursor: default;
 }
 
 /* ── Stats bars ── */

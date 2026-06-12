@@ -76,8 +76,8 @@ const labels = {
     editBlock: 'Изменить блок',
     title: 'Название',
     type: 'Тип',
-    start: 'Начало',
-    end: 'Конец',
+    startTime: 'Начало',
+    endTime: 'Конец',
     cancel: 'Отмена',
     saveChanges: 'Сохранить',
     addSleep: 'Добавить сон',
@@ -148,8 +148,8 @@ const labels = {
     editBlock: 'Edit block',
     title: 'Title',
     type: 'Type',
-    start: 'Start',
-    end: 'End',
+    startTime: 'Start',
+    endTime: 'End',
     cancel: 'Cancel',
     saveChanges: 'Save',
     addSleep: 'Add sleep',
@@ -220,8 +220,8 @@ const labels = {
     editBlock: 'Block bearbeiten',
     title: 'Titel',
     type: 'Typ',
-    start: 'Start',
-    end: 'Ende',
+    startTime: 'Start',
+    endTime: 'Ende',
     cancel: 'Abbrechen',
     saveChanges: 'Sichern',
     addSleep: 'Schlaf hinzufügen',
@@ -283,6 +283,7 @@ const state = {
   tick: Date.now(),
   noisePlaying: false,
   planAtTop: true,
+  planDay: 0, // day offset shown on the plan screen (0 = today)
   installPrompt: null,
   rebuilding: false,
   confirm: null, // { title, body, action, danger }
@@ -376,34 +377,6 @@ function csvRowsForAge(age) {
   return (window.AGE_SCHEDULE_ROWS || [])
     .filter((row) => Number(row.month) === Math.max(0, Math.min(24, Number(age) || 0)))
     .sort((a, b) => Number(a.event_order) - Number(b.event_order));
-}
-
-function csvTypeToBlockType(row) {
-  const text = `${row.event_type || ''} ${row.event_name || ''}`.toLowerCase();
-  if (text.includes('сон') || text.includes('ночь')) return 'sleep';
-  if (text.includes('корм') || text.includes('молоко') || text.includes('еда') || text.includes('перекус') || text.includes('завтрак') || text.includes('обед') || text.includes('ужин')) return 'feed';
-  if (text.includes('ритуал') || text.includes('вечер') || text.includes('тихий')) return 'calm';
-  return 'active';
-}
-
-function generateCsvSchedule() {
-  const rows = csvRowsForAge(state.settings.ageMonths);
-  if (!rows.length) return null;
-  const shift = state.settings.wakeHour * 60 - 7 * 60;
-  return rows.map((row, index) => {
-    const start = toMinute(row.start_time) + shift;
-    const end = normalizeEnd(toMinute(row.end_time), toMinute(row.start_time)) + shift;
-    return {
-      id: `csv-${row.month}-${row.event_order}-${index}`,
-      start,
-      end,
-      title: row.event_name,
-      labelKey: null,
-      type: csvTypeToBlockType(row),
-      rawEventType: row.event_type,
-      source: 'csv',
-    };
-  }).sort((a, b) => a.start - b.start);
 }
 
 function csvText(row) {
@@ -530,7 +503,7 @@ function generateCsvSchedule() {
 
 function isCurrentCustomSchedule(schedule) {
   if (!Array.isArray(schedule) || !schedule.length) return false;
-  return schedule.some((block) => String(block.id || '').startsWith('csv-') || block.source === 'csv');
+  return schedule.every((block) => Number.isFinite(block.start) && Number.isFinite(block.end) && block.type);
 }
 
 function feedingPreset(age = 5) {
@@ -1262,7 +1235,7 @@ function scheduleCard(block, label, featured) {
       <div class="kicker">${label}</div>
       <div class="title-row">
         <div class="icon-dot">${blockIcon(block)}</div>
-        <div class="block-title">${titleFor(block)}</div>
+        <div class="block-title">${escapeHtml(titleFor(block))}</div>
         <div class="block-time">${clock(block.start)}–${clock(block.end)}</div>
       </div>
     </section>
@@ -1275,14 +1248,14 @@ function sleepButton() {
 
 function planScreen() {
   const schedule = generateSchedule();
-  const sessions = activeSessions();
-  const start = dayStartDate().getTime();
+  const sessions = activeSessions(state.planDay);
+  const start = dayStartDate(state.planDay).getTime();
   const minute = nowMinute();
   const hours = Array.from({ length: 25 }, (_, i) => state.settings.wakeHour * 60 + i * 60);
   const blocks = schedule.map((b) => {
     const top = 44 + (b.start - state.settings.wakeHour * 60) * PLAN_PX;
     const height = Math.max(48, (b.end - b.start) * PLAN_PX);
-    return `<button class="plan-block ${b.type}" data-edit-plan="${b.id}" style="top:${top}px;height:${height}px"><div class="block-small">${blockIcon(b)} ${titleFor(b)}</div><div>${clock(b.start)}–${clock(b.end)}</div></button>`;
+    return `<button class="plan-block ${b.type}" data-edit-plan="${b.id}" style="top:${top}px;height:${height}px"><div class="block-small">${blockIcon(b)} ${escapeHtml(titleFor(b))}</div><div>${clock(b.start)}–${clock(b.end)}</div></button>`;
   }).join('');
   const actual = sessions.map((s) => {
     const sm = (s.start - start) / 60000 + state.settings.wakeHour * 60;
@@ -1294,7 +1267,7 @@ function planScreen() {
   }).join('');
   const timelineHeight = 44 + DAY * PLAN_PX;
   const currentTop = 44 + Math.max(0, Math.min(DAY, minute - state.settings.wakeHour * 60)) * PLAN_PX;
-  const currentLine = minute >= state.settings.wakeHour * 60 && minute <= state.settings.wakeHour * 60 + DAY
+  const currentLine = state.planDay === 0 && minute >= state.settings.wakeHour * 60 && minute <= state.settings.wakeHour * 60 + DAY
     ? `<div class="current-time-line" style="top:${currentTop}px"><span>${clock(minute)}</span></div>`
     : '';
   return `
@@ -1322,7 +1295,9 @@ function weekChips() {
   return Array.from({ length: 7 }, (_, i) => {
     const date = new Date(monday);
     date.setDate(monday.getDate() + i);
-    return `<button class="day-chip ${i === day - 1 ? 'active' : ''}">${date.toLocaleDateString(locale(), { weekday: 'short' })}<br>${date.getDate()}</button>`;
+    const offset = i - (day - 1);
+    const future = offset > 0;
+    return `<button class="day-chip ${offset === state.planDay ? 'active' : ''} ${i === day - 1 ? 'today' : ''}" data-plan-day="${offset}" ${future ? 'disabled' : ''}>${date.toLocaleDateString(locale(), { weekday: 'short' })}<br>${date.getDate()}</button>`;
   }).join('');
 }
 
@@ -1449,6 +1424,13 @@ function settingsScreen() {
   `;
 }
 
+const typeNames = {
+  sleep: { ru: 'Сон', en: 'Sleep', de: 'Schlaf' },
+  feed: { ru: 'Кормление', en: 'Feeding', de: 'Füttern' },
+  active: { ru: 'Активность', en: 'Active', de: 'Aktiv' },
+  calm: { ru: 'Спокойное время', en: 'Calm', de: 'Ruhig' },
+};
+
 function editorModal() {
   const e = state.editor;
   const editingSleep = e.mode === 'sleep' && e.sourceIds?.length;
@@ -1467,12 +1449,12 @@ function editorModal() {
         ${e.mode === 'sleep' ? '' : `
           <label>${t('title')}<input name="title" value="${escapeHtml(e.title)}" /></label>
           <label>${t('type')}<select name="type">
-            ${['sleep', 'feed', 'active', 'calm'].map((type) => `<option value="${type}" ${e.type === type ? 'selected' : ''}>${type}</option>`).join('')}
+            ${['sleep', 'feed', 'active', 'calm'].map((type) => `<option value="${type}" ${e.type === type ? 'selected' : ''}>${typeNames[type][state.settings.language] || typeNames[type].en}</option>`).join('')}
           </select></label>
         `}
         <div class="modal-grid">
-          <label>${t('start')}<input name="start" type="time" value="${clock(e.start)}" /></label>
-          <label>${t('end')}<input name="end" type="time" value="${clock(e.end)}" /></label>
+          <label>${t('startTime')}<input name="start" type="time" step="300" required value="${clock(e.start)}" /></label>
+          <label>${t('endTime')}<input name="end" type="time" step="300" required value="${clock(e.end)}" /></label>
         </div>
         <div class="modal-actions">
           <button type="button" class="secondary" data-action="close-editor">${t('cancel')}</button>
@@ -1583,19 +1565,20 @@ function chevronSvg() { return `<svg viewBox="0 0 24 24" fill="none"><path d="M6
 function trashSvg() { return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4h6l1 2h4M4 6h16M7 6l1 14h8l1-14M10 10v6M14 10v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 
 document.addEventListener('click', async (event) => {
-  // If confirm modal is open and click is inside the card (not backdrop), stop backdrop from closing
-  if (state.confirm && event.target.closest('.confirm-card')) {
-    // let button handlers below process normally, but don't dismiss via backdrop
-  } else if (state.confirm && !event.target.closest('.confirm-backdrop button')) {
-    // click was on backdrop area — dismiss
-    if (!event.target.closest('.confirm-card')) {
-      state.confirm = null;
-      render();
-      return;
-    }
+  // Dismiss confirm only when the backdrop itself is clicked, never clicks inside the card
+  if (state.confirm && event.target.classList.contains('confirm-backdrop')) {
+    state.confirm = null;
+    render();
+    return;
   }
   const target = event.target.closest('button,[data-lang],[data-setting],[data-save-slot],[data-load-slot],[data-edit-sleep],[data-sound],[data-action]');
   if (!target) return;
+  // Backdrops carry data-action for closing; only honour it when the backdrop itself
+  // was clicked (or a real button) — otherwise clicks on inputs inside the modal
+  // bubble up and close the editor.
+  const action = target.dataset.action;
+  const backdropAction = action === 'close-editor' || action === 'cancel-confirm';
+  if (backdropAction && target.tagName !== 'BUTTON' && event.target !== target) return;
   if (target.dataset.lang) {
     state.settings.language = target.dataset.lang;
     save(LS.settings, state.settings);
@@ -1614,6 +1597,11 @@ document.addEventListener('click', async (event) => {
   }
   if (target.dataset.tab) {
     state.tab = target.dataset.tab;
+    state.planDay = 0;
+    render();
+  }
+  if (target.dataset.planDay !== undefined) {
+    state.planDay = Number(target.dataset.planDay);
     render();
   }
   if (target.dataset.setting) {
@@ -1621,7 +1609,6 @@ document.addEventListener('click', async (event) => {
     save(LS.settings, state.settings);
     render();
   }
-  const action = target.dataset.action;
   if (action === 'next-onboarding') {
     state.onboardingStep = Math.min(3, state.onboardingStep + 1);
     render();
@@ -1829,10 +1816,10 @@ document.addEventListener('click', async (event) => {
     const items = state.sessions.filter((item) => ids.includes(item.id));
     const merged = mergeSessionSegments(items)[0];
     if (merged) {
-      const base = dayStartDate().getTime();
+      const base = dayStartDate(state.planDay).getTime();
       const start = Math.round(((merged.start - base) / 60000 + state.settings.wakeHour * 60) / 5) * 5;
       const end = Math.round(((merged.end - base) / 60000 + state.settings.wakeHour * 60) / 5) * 5;
-      state.editor = { mode: 'sleep', sourceIds: ids, start, end };
+      state.editor = { mode: 'sleep', sourceIds: ids, start, end, base };
       render();
     }
   }
@@ -1840,7 +1827,7 @@ document.addEventListener('click', async (event) => {
     const rect = target.getBoundingClientRect();
     const raw = state.settings.wakeHour * 60 + Math.max(0, event.clientY - rect.top - 44) / PLAN_PX;
     const start = Math.max(state.settings.wakeHour * 60, Math.round(raw / 5) * 5);
-    state.editor = { mode: 'sleep', start, end: start + 30 };
+    state.editor = { mode: 'sleep', start, end: start + 30, base: dayStartDate(state.planDay).getTime() };
     render();
   }
   if (target.dataset.saveSlot) {
@@ -1868,10 +1855,12 @@ document.addEventListener('submit', (event) => {
   if (!form || !state.editor) return;
   event.preventDefault();
   const data = new FormData(form);
-  const start = toMinute(data.get('start'));
+  const wakeMin = state.settings.wakeHour * 60;
+  let start = toMinute(data.get('start'));
+  if (start < wakeMin) start += DAY; // times past midnight belong to the same routine day
   const end = normalizeEnd(toMinute(data.get('end')), start);
   if (state.editor.mode === 'sleep') {
-    const base = dayStartDate().getTime();
+    const base = state.editor.base ?? dayStartDate().getTime();
     const item = {
       id: state.editor.sourceIds?.[0] || `sleep-${Date.now()}`,
       start: base + (start - state.settings.wakeHour * 60) * 60000,
